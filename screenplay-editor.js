@@ -23,7 +23,10 @@ export default class ScreenplayEditor {
         
         // Restore initializeEditor method
         this.initializeEditor();
+        
+        // Restore setupEventListeners method
         this.setupEventListeners();
+        
         this.setupDropdowns();
         
         window.utils.debugLog('Screenplay Editor initialized');
@@ -44,6 +47,53 @@ export default class ScreenplayEditor {
         } catch (error) {
             window.utils.debugLog(`Editor initialization error: ${error.message}`, 'error');
         }
+    }
+
+    // Restored setupEventListeners method
+    setupEventListeners() {
+        if (!this.editorElement) {
+            window.utils.debugLog('Editor element not found for event listeners', 'error');
+            return;
+        }
+
+        let inputTimeout;
+        this.editorElement.addEventListener('input', (event) => {
+            if (!this.updatesEnabled) return;
+            
+            clearTimeout(inputTimeout);
+            inputTimeout = setTimeout(() => {
+                this.handleInput(event);
+            }, 100);
+
+            // Handle dropdown visibility
+            this.checkForTimeDropdown();
+        });
+
+        this.editorElement.addEventListener('keydown', (event) => {
+            if (!this.updatesEnabled) return;
+            
+            switch(event.key) {
+                case 'Tab':
+                    event.preventDefault();
+                    this.handleTabKey(event);
+                    break;
+                case 'Enter':
+                    this.handleEnterKey(event);
+                    break;
+                case 'Escape':
+                    this.hideTimeDropdown();
+                    break;
+            }
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            if (this.timeDropdown && 
+                !this.timeDropdown.contains(event.target) && 
+                !this.editorElement.contains(event.target)) {
+                this.hideTimeDropdown();
+            }
+        });
     }
 
     setupDropdowns() {
@@ -159,7 +209,7 @@ export default class ScreenplayEditor {
         }
     }
 
-    // Rest of the methods remain unchanged
+    // Remaining methods
     handleInput(event) {
         try {
             const content = this.editorElement.value;
@@ -179,7 +229,6 @@ export default class ScreenplayEditor {
         }
     }
 
-    // Remaining methods from the previous implementation
     handleTabKey(event) {
         const isShiftPressed = event.shiftKey;
         this.formatter.handleTabKey(isShiftPressed);
