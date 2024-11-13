@@ -3,14 +3,16 @@ import SceneManager from './scene-manager.js';
 
 export default class ScreenplayEditor {
     constructor(options = {}) {
-        // Dependency injection for StateMachine and SceneManager
+        // Ensure StateMachine is properly initialized
         this.stateMachine = options.stateMachine || new StateMachine();
-        this.sceneManager = options.sceneManager || new SceneManager();
+        
+        // Pass StateMachine to SceneManager
+        this.sceneManager = options.sceneManager || new SceneManager(this.stateMachine);
         
         this.editorElement = document.getElementById('screenplay-editor');
         this.timeDropdown = document.getElementById('time-of-day-dropdown');
         this.options = options;
-        this.updatesEnabled = !options.suppressInitialUpdates;
+        this.updatesEnabled = options.suppressInitialUpdates !== true;
         this.lastContent = '';
         
         this.initializeEditor();
@@ -95,12 +97,25 @@ export default class ScreenplayEditor {
 
         this.editorElement.addEventListener('keydown', (event) => {
             if (!this.updatesEnabled) return;
-            this.handleKeyDown(event);
+            
+            switch(event.key) {
+                case 'Tab':
+                    event.preventDefault();
+                    this.handleTabKey(event);
+                    break;
+                case 'Enter':
+                    this.handleEnterKey(event);
+                    break;
+                case 'Escape':
+                    this.hideTimeDropdown();
+                    break;
+            }
         });
 
         // Hide dropdown when clicking outside
         document.addEventListener('click', (event) => {
-            if (!this.timeDropdown.contains(event.target) && 
+            if (this.timeDropdown && 
+                !this.timeDropdown.contains(event.target) && 
                 !this.editorElement.contains(event.target)) {
                 this.hideTimeDropdown();
             }
@@ -202,7 +217,7 @@ export default class ScreenplayEditor {
                     
                     const cursorPosition = this.editorElement.selectionStart;
                     const previousContent = lines.slice(0, currentLineIndex).join('\n');
-                    const newCursorPosition = previousContent.length + formattedLine.length;
+                    const newCursorPosition = previousContent.length + formattedLine.length + 1;
                     
                     this.editorElement.value = lines.join('\n');
                     this.editorElement.setSelectionRange(newCursorPosition, newCursorPosition);
