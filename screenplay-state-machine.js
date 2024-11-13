@@ -58,9 +58,11 @@ export default class ScreenplayStateMachine {
 
         switch(context) {
             case 'SCENE_HEADING':
+                // Ensure all scene heading prefixes are uppercase
                 const matchingPrefix = this.SCENE_HEADING_PREFIXES.find(prefix => 
                     trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
                 );
+                
                 if (matchingPrefix) {
                     const uppercasePrefix = matchingPrefix.toUpperCase();
                     const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
@@ -70,16 +72,16 @@ export default class ScreenplayStateMachine {
                 return trimmedLine.toUpperCase();
 
             case 'CHARACTER_NAME':
-                return trimmedLine.toUpperCase().padStart(40, ' ').padEnd(80, ' ');
+                return trimmedLine.toUpperCase();
 
             case 'DIALOGUE':
-                return '    ' + trimmedLine;
+                return trimmedLine;
 
             case 'PARENTHETICAL':
-                return '    ' + trimmedLine;
+                return trimmedLine;
 
             case 'TRANSITION':
-                return trimmedLine.toUpperCase().padStart(80);
+                return trimmedLine.toUpperCase();
 
             case 'ACTION':
                 return trimmedLine.charAt(0).toUpperCase() + trimmedLine.slice(1);
@@ -90,15 +92,22 @@ export default class ScreenplayStateMachine {
     }
 
     detectContext(line) {
-        const trimmedLine = line.trim();
+        const trimmedLine = line.trim().toUpperCase();
         
-        if (this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine)) {
+        // Scene Heading Detection with multiple prefix variations
+        if (this.SCENE_HEADING_PREFIXES.some(prefix => 
+            trimmedLine.startsWith(prefix.toUpperCase())
+        )) {
             return 'SCENE_HEADING';
         }
-        if (this.CONTEXT_REGEX.CHARACTER_NAME.test(trimmedLine)) {
+        
+        // Character Detection
+        if (/^[A-Z][A-Z\s]+$/.test(trimmedLine) && !trimmedLine.includes('(')) {
             return 'CHARACTER_NAME';
         }
-        if (this.CONTEXT_REGEX.TRANSITION.test(trimmedLine)) {
+        
+        // Transition Detection
+        if (/^(FADE IN:|FADE OUT:|CUT TO:)/.test(trimmedLine)) {
             return 'TRANSITION';
         }
         
