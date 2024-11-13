@@ -1,7 +1,24 @@
 import config from './config.js';
 import { ErrorLogger, debugLog } from './utils.js';
 import ExportService from './export-service.js';
+import StateMachine from './screenplay-state-machine.js';
+import SceneManager from './scene-manager.js';
 import ScreenplayEditor from './screenplay-editor.js';
+
+// Global utility object to simulate window-based interactions
+const utils = {
+    debugLog: (message, type = 'log') => {
+        console.log(message);
+        debugLog(message, type);
+    }
+};
+
+// Global export service
+const exportService = {
+    export: (content, format) => {
+        ExportService.export(content, format);
+    }
+};
 
 function initializeScreenplayEditor() {
     try {
@@ -13,8 +30,20 @@ function initializeScreenplayEditor() {
             autoSaveInterval: config.get('editor.autoSaveInterval', 5000)
         };
 
-        // Create screenplay editor instance
-        const screenplayEditor = new ScreenplayEditor(editorConfig);
+        // Create dependencies explicitly
+        const stateMachine = new StateMachine();
+        const sceneManager = new SceneManager(stateMachine);
+
+        // Attach global objects to simulate window-based interactions
+        window.utils = utils;
+        window.ExportService = exportService;
+
+        // Create screenplay editor instance with explicit dependencies
+        const screenplayEditor = new ScreenplayEditor({
+            ...editorConfig,
+            stateMachine,
+            sceneManager
+        });
         
         // Setup toolbar events
         setupToolbarEvents(screenplayEditor);
