@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: screenplay-editor
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 14.0.0
+    plan: free
+    healthCheckPath: /
+    autoDeploy: true

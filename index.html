@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenwriting Text Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Error and Debug Containers -->
+    <div id="module-error"></div>
+    <div id="debug-log"></div>
+
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <button id="export">Export</button>
+        <button id="toggle-dark-mode">Toggle Dark Mode</button>
+        <button id="toggle-distraction-free">Distraction Free</button>
+    </div>
+
+    <!-- Main Editor Container -->
+    <div id="editor-container">
+        <div id="scene-list"></div>
+        <textarea id="screenplay-editor" placeholder="Start writing your screenplay..."></textarea>
+        <div id="dropdowns">
+            <div id="time-of-day-dropdown" class="dropdown">
+                <div class="dropdown-content">
+                    <span data-value="DAY">DAY</span>
+                    <span data-value="NIGHT">NIGHT</span>
+                    <span data-value="MORNING">MORNING</span>
+                    <span data-value="AFTERNOON">AFTERNOON</span>
+                    <span data-value="EVENING">EVENING</span>
+                </div>
+            </div>
+            <div id="character-dropdown" class="dropdown">
+                <div class="dropdown-content"></div>
+            </div>
+            <div id="transition-dropdown" class="dropdown">
+                <div class="dropdown-content">
+                    <span data-value="CUT TO:">CUT TO:</span>
+                    <span data-value="FADE IN:">FADE IN:</span>
+                    <span data-value="FADE OUT:">FADE OUT:</span>
+                    <span data-value="DISSOLVE TO:">DISSOLVE TO:</span>
+                    <span data-value="SMASH CUT TO:">SMASH CUT TO:</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metadata Container -->
+    <div id="metadata-container">
+        <div id="character-list"></div>
+        <div id="page-count">Page Count: 0</div>
+        <div id="runtime-estimate">Runtime Estimate: 0 minutes</div>
+    </div>
+
+    <!-- External Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Inline Script to Load Modules -->
+    <script type="module">
+    // Centralized error handling
+    function handleError(error, context = 'General') {
+        const errorContainer = document.getElementById('module-error');
+        errorContainer.innerHTML = `
+            <h3>Application Load Error</h3>
+            <p>Context: ${context}</p>
+            <pre>${error.message || error}</pre>
+        `;
+        console.error(`Error in ${context}:`, error);
+    }
+
+    // Dynamic module loader
+    async function loadModules() {
+        const modules = [
+            'utils.js',
+            'config.js',
+            'cache-manager.js',
+            'base-editor.js',
+            'state-machine.js',
+            'scene-manager.js',
+            'screenplay-state-machine.js',
+            'screenplay-editor.js',
+            'export-service.js',
+            'script.js'
+        ];
+
+        for (const modulePath of modules) {
+            try {
+                await import(`./${modulePath}`);
+            } catch (error) {
+                handleError(error, `Loading ${modulePath}`);
+                break;
+            }
+        }
+    }
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+        loadModules().catch(error => {
+            handleError(error, 'Module Initialization');
+        });
+    });
+    </script>
+</body>
+</html>

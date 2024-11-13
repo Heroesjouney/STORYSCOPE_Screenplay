@@ -1,0 +1,181 @@
+:root {
+    --primary-bg: #ffffff;
+    --primary-text: #000000;
+    --secondary-bg: #f4f4f4;
+    --accent-color: #007bff;
+    --error-color: #dc3545;
+    
+    /* Dark Mode Variables */
+    --dark-bg: #121212;
+    --dark-text: #e0e0e0;
+    --dark-secondary-bg: #1e1e1e;
+}
+
+/* Base Styles */
+body {
+    font-family: 'Courier New', Courier, monospace;
+    line-height: 1.6;
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
+    transition: all 0.3s ease;
+    margin: 0;
+    padding: 20px;
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: var(--dark-bg);
+    color: var(--dark-text);
+}
+
+body.dark-mode #editor-container {
+    background-color: var(--dark-secondary-bg);
+}
+
+/* Distraction Free Mode */
+body.distraction-free {
+    padding: 0;
+}
+
+body.distraction-free #toolbar,
+body.distraction-free #metadata-container {
+    display: none;
+}
+
+body.distraction-free #screenplay-editor {
+    width: 100%;
+    height: 100vh;
+    border: none;
+    resize: none;
+}
+
+/* Editor Container */
+#editor-container {
+    display: flex;
+    background-color: var(--secondary-bg);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Screenplay Editor */
+#screenplay-editor {
+    flex-grow: 1;
+    min-height: 500px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+/* Toolbar */
+#toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+#toolbar button {
+    padding: 8px 15px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#toolbar button:hover {
+    opacity: 0.9;
+}
+
+/* Dropdowns */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: var(--primary-bg);
+    min-width: 160px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.dropdown-content span {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    cursor: pointer;
+}
+
+.dropdown-content span:hover {
+    background-color: #f1f1f1;
+}
+
+/* Metadata Container */
+#metadata-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+    padding: 10px;
+    background-color: var(--secondary-bg);
+    border-radius: 4px;
+}
+
+/* Error and Debug Logging */
+#module-error, #debug-log {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+#module-error {
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+}
+
+#debug-log .debug-entry {
+    margin: 5px 0;
+    padding: 5px;
+    border-radius: 3px;
+}
+
+#debug-log .debug-log {
+    color: #333;
+}
+
+#debug-log .debug-error {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: var(--error-color);
+}
+
+#debug-log .debug-success {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #editor-container {
+        flex-direction: column;
+    }
+
+    #screenplay-editor {
+        min-height: 300px;
+    }
+
+    #toolbar {
+        flex-wrap: wrap;
+    }
+}
