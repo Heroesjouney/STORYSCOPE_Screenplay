@@ -115,15 +115,10 @@ body.distraction-free #screenplay-editor {
     background-color: rgba(0, 123, 255, 0.1);
 }
 
-/* Dropdowns */
 .dropdown {
     position: relative;
     display: inline-block;
-}
-
-#dropdowns {
-    position: relative;
-    z-index: 100;
+    pointer-events: auto;
 }
 
 .dropdown-content {
@@ -155,34 +150,46 @@ body.distraction-free #screenplay-editor {
     background-color: #f1f1f1;
 }
 
-/* Time of Day Dropdown Specific Styling */
+/* Time of Day Dropdown Specific Enhancements */
 #time-of-day-dropdown,
 #transition-dropdown {
     position: absolute;
+    left: 0;
+    top: 100%;
     z-index: 1000;
+    min-width: 200px;
 }
 
 #time-of-day-dropdown .dropdown-content,
 #transition-dropdown .dropdown-content {
-    width: 150px;
-    max-height: 200px;
+    width: 100%;
+    max-height: 250px;
     overflow-y: auto;
-    display: none;
 }
 
 #time-of-day-dropdown .dropdown-content span,
 #transition-dropdown .dropdown-content span {
-    padding: 10px 15px;
-    border-bottom: 1px solid #eee;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
 }
 
-#time-of-day-dropdown .dropdown-content span:last-child,
-#transition-dropdown .dropdown-content span:last-child {
-    border-bottom: none;
+#time-of-day-dropdown .dropdown-content span:hover,
+#transition-dropdown .dropdown-content span:hover {
+    background-color: #f5f5f5;
 }
 
-/* Ensure dropdowns are visible when active */
-#time-of-day-dropdown.active .dropdown-content,
-#transition-dropdown.active .dropdown-content {
-    display: block;
+/* Dark Mode Dropdown Enhancements */
+body.dark-mode .dropdown-content {
+    background-color: var(--dark-secondary-bg);
+    border-color: #444;
+}
+
+body.dark-mode .dropdown-content span {
+    color: var(--dark-text);
+    border-bottom-color: #333;
+}
+
+body.dark-mode .dropdown-content span:hover {
+    background-color: #444;
 }
