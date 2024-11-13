@@ -61,10 +61,13 @@ export default class SceneManager {
     }
 
     renderSceneList() {
-        if (!this.sceneListElement) return;
+        if (!this.sceneListElement) {
+            console.warn('Scene list element not found');
+            return;
+        }
 
-        // Only update if there are changes
-        const newSceneList = document.createElement('div');
+        // Clear existing content
+        this.sceneListElement.innerHTML = '';
         
         this.scenes.forEach((scene, index) => {
             const sceneCard = document.createElement('div');
@@ -74,12 +77,15 @@ export default class SceneManager {
 
             sceneCard.addEventListener('click', () => this.navigateToScene(index));
             
-            newSceneList.appendChild(sceneCard);
+            this.sceneListElement.appendChild(sceneCard);
         });
 
-        // Only update DOM if content has changed
-        if (this.sceneListElement.innerHTML !== newSceneList.innerHTML) {
-            this.sceneListElement.innerHTML = newSceneList.innerHTML;
+        // Add a title or message if no scenes are found
+        if (this.scenes.length === 0) {
+            const noScenesMessage = document.createElement('div');
+            noScenesMessage.textContent = 'No scenes detected';
+            noScenesMessage.classList.add('no-scenes-message');
+            this.sceneListElement.appendChild(noScenesMessage);
         }
     }
 
