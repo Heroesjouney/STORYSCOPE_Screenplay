@@ -10,18 +10,7 @@ const MIME_TYPES = {
     '.js': 'application/javascript',
     '.mjs': 'application/javascript',
     '.css': 'text/css',
-    '.json': 'application/json',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
-    '.wav': 'audio/wav',
-    '.mp4': 'video/mp4',
-    '.woff': 'application/font-woff',
-    '.ttf': 'application/font-ttf',
-    '.eot': 'application/vnd.ms-fontobject',
-    '.otf': 'application/font-otf',
-    '.wasm': 'application/wasm'
+    '.json': 'application/json'
 };
 
 const server = http.createServer((req, res) => {
@@ -41,10 +30,16 @@ const server = http.createServer((req, res) => {
     const extname = path.extname(filePath);
     const contentType = MIME_TYPES[extname] || 'application/octet-stream';
 
-    // CORS headers
+    // CORS and module support headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Ensure proper module loading
+    if (extname === '.js' || extname === '.mjs') {
+        res.setHeader('Content-Type', 'application/javascript');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+    }
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
@@ -70,14 +65,15 @@ const server = http.createServer((req, res) => {
             } else {
                 // Server error
                 res.writeHead(500);
-                res.end('Sorry, check with the site admin for error: ' + error.code);
+                res.end('Server Error: ' + error.code);
             }
         } else {
             // Successful response
             res.writeHead(200, { 
                 'Content-Type': contentType,
-                // Additional headers for module support
-                'X-Content-Type-Options': 'nosniff'
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             });
 
             // Only send content for GET requests
@@ -90,19 +86,7 @@ const server = http.createServer((req, res) => {
     });
 });
 
-// Add route for screenplay-editor.js
-server.get('/screenplay-editor.js', (req, res) => {
-    fs.readFile(path.join(__dirname, 'screenplay-editor.js'), (error, content) => {
-        if (error) {
-            res.writeHead(500);
-            res.end('Error loading screenplay-editor.js');
-        } else {
-            res.writeHead(200, { 'Content-Type': 'application/javascript' });
-            res.end(content, 'utf-8');
-        }
-    });
-});
-
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
+    console.log('Ensure you are running this with "node server.js" or "npm start"');
 });

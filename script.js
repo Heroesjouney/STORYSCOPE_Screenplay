@@ -20,7 +20,7 @@ const exportService = {
     }
 };
 
-function initializeScreenplayEditor() {
+export function initializeScreenplayEditor() {
     try {
         // Initialize configuration
         const editorConfig = {
@@ -52,15 +52,21 @@ function initializeScreenplayEditor() {
         ErrorLogger.setupGlobalErrorHandling();
 
         debugLog('Screenplay Editor Initialized', 'success');
+        return screenplayEditor;
     } catch (error) {
         ErrorLogger.log(error, 'Editor Initialization Failed');
+        throw error;
     }
 }
 
-function setupToolbarEvents(screenplayEditor) {
+export function setupToolbarEvents(screenplayEditor) {
     const exportButton = document.getElementById('export');
     const darkModeToggle = document.getElementById('toggle-dark-mode');
     const distractionFreeToggle = document.getElementById('toggle-distraction-free');
+
+    if (!exportButton || !darkModeToggle || !distractionFreeToggle) {
+        throw new Error('Toolbar elements not found');
+    }
 
     // Export functionality
     exportButton.addEventListener('click', () => {
@@ -98,11 +104,6 @@ function setupToolbarEvents(screenplayEditor) {
     });
 }
 
-// Initialize the editor when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', initializeScreenplayEditor);
-
-// Expose key functions for potential external use
-export {
-    initializeScreenplayEditor,
-    setupToolbarEvents
-};
+// Ensure the functions are available globally if needed
+window.initializeScreenplayEditor = initializeScreenplayEditor;
+window.setupToolbarEvents = setupToolbarEvents;

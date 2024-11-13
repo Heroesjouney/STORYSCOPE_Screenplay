@@ -57,49 +57,34 @@
     <!-- External Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-    <!-- Inline Script to Load Modules -->
+    <!-- Modules -->
     <script type="module">
-    // Centralized error handling
-    function handleError(error, context = 'General') {
+    import { initializeScreenplayEditor } from './script.js';
+
+    // Global error handling
+    window.addEventListener('error', (event) => {
         const errorContainer = document.getElementById('module-error');
         errorContainer.innerHTML = `
-            <h3>Application Load Error</h3>
-            <p>Context: ${context}</p>
-            <pre>${error.message || error}</pre>
+            <h3>Unhandled Error</h3>
+            <p>Message: ${event.message}</p>
+            <p>Filename: ${event.filename}</p>
+            <p>Line: ${event.lineno}</p>
         `;
-        console.error(`Error in ${context}:`, error);
-    }
-
-    // Dynamic module loader
-    async function loadModules() {
-        const modules = [
-            'utils.js',
-            'config.js',
-            'cache-manager.js',
-            'base-editor.js',
-            'state-machine.js',
-            'scene-manager.js',
-            'screenplay-state-machine.js',
-            'screenplay-editor.js',
-            'export-service.js',
-            'script.js'
-        ];
-
-        for (const modulePath of modules) {
-            try {
-                await import(`./${modulePath}`);
-            } catch (error) {
-                handleError(error, `Loading ${modulePath}`);
-                break;
-            }
-        }
-    }
+        console.error('Unhandled error:', event);
+    });
 
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', () => {
-        loadModules().catch(error => {
-            handleError(error, 'Module Initialization');
-        });
+        try {
+            initializeScreenplayEditor();
+        } catch (error) {
+            const errorContainer = document.getElementById('module-error');
+            errorContainer.innerHTML = `
+                <h3>Initialization Error</h3>
+                <pre>${error.stack}</pre>
+            `;
+            console.error('Initialization failed:', error);
+        }
     });
     </script>
 </body>

@@ -35,25 +35,38 @@ class ConfigManager {
         };
 
         // Merge with stored configuration
-        this.#config = {
-            ...defaultConfig,
-            ...this._loadLocalConfig()
-        };
+        try {
+            const storedConfig = this._loadLocalConfig();
+            this.#config = {
+                ...defaultConfig,
+                ...storedConfig
+            };
+        } catch (error) {
+            console.error('Error loading configuration:', error);
+            this.#config = defaultConfig;
+        }
     }
 
     _loadLocalConfig() {
         try {
+            // Use try-catch to handle potential JSON parsing errors
             const storedConfig = localStorage.getItem('screenplayEditorConfig');
             return storedConfig ? JSON.parse(storedConfig) : {};
         } catch (error) {
-            console.error('Error loading local config:', error);
+            console.error('Error parsing stored configuration:', error);
             return {};
         }
     }
 
     get(key, defaultValue) {
-        // Support nested key access
-        return this._getNestedValue(this.#config, key) ?? defaultValue;
+        // Support nested key access with improved error handling
+        try {
+            const value = this._getNestedValue(this.#config, key);
+            return value !== undefined ? value : defaultValue;
+        } catch (error) {
+            console.warn(`Error accessing config key ${key}:`, error);
+            return defaultValue;
+        }
     }
 
     _getNestedValue(obj, path) {
@@ -62,16 +75,20 @@ class ConfigManager {
     }
 
     set(key, value) {
-        // Support nested key setting
-        const keys = key.split('.');
-        const lastKey = keys.pop();
-        const target = keys.reduce((acc, part) => {
-            if (!(part in acc)) acc[part] = {};
-            return acc[part];
-        }, this.#config);
+        // Support nested key setting with improved error handling
+        try {
+            const keys = key.split('.');
+            const lastKey = keys.pop();
+            const target = keys.reduce((acc, part) => {
+                if (!(part in acc)) acc[part] = {};
+                return acc[part];
+            }, this.#config);
 
-        target[lastKey] = value;
-        this._saveLocalConfig();
+            target[lastKey] = value;
+            this._saveLocalConfig();
+        } catch (error) {
+            console.error(`Error setting config key ${key}:`, error);
+        }
     }
 
     _saveLocalConfig() {
@@ -88,7 +105,7 @@ class ConfigManager {
         this._saveLocalConfig();
     }
 
-    // Validate configuration
+    // Validate configuration with improved error reporting
     validate() {
         const validationRules = {
             'export.defaultFormat': (val) => ['pdf', 'txt', 'fdx'].includes(val),
@@ -114,5 +131,5 @@ class ConfigManager {
 // Create a singleton instance
 const config = new ConfigManager();
 
-// Export for module compatibility
+// Export the singleton instance
 export default config;
