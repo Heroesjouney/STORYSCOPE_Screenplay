@@ -1,6 +1,7 @@
 import StateMachine from './screenplay-state-machine.js';
 import SceneManager from './scene-manager.js';
 import ScreenplayFormatter from './screenplay-formatter.js';
+import { debugLog } from './utils.js';
 
 export default class ScreenplayEditor {
     constructor(options = {}) {
@@ -72,8 +73,8 @@ export default class ScreenplayEditor {
                 let newLine = currentLine;
                 if (currentLine.includes('-')) {
                     newLine = currentLine.split('-')[0].trim();
-                }
-                
+    }
+
                 // Add the new time of day
                 lines[currentLineIndex] = `${newLine} - ${timeValue}`;
                 
@@ -143,20 +144,30 @@ export default class ScreenplayEditor {
                 const currentLine = lines[currentLineIndex];
                 const cursorPosInLine = cursorPos - lines.slice(0, currentLineIndex).join('\n').length - (currentLineIndex > 0 ? 1 : 0);
                 
-                // Only show dropdown if:
-                // 1. Line is a scene heading
-                // 2. Just typed a hyphen (hyphen is at cursor position)
-                // 3. Hyphen is not part of an existing time of day
-                if (this.stateMachine.detectContext(currentLine) === 'SCENE_HEADING' && 
-                    currentLine[cursorPosInLine - 1] === '-' &&
-                    !currentLine.slice(0, cursorPosInLine - 1).includes('-')) {
+                // Improved dropdown detection logic
+                const isSceneHeading = this.stateMachine.detectContext(currentLine) === 'SCENE_HEADING';
+                const hasSceneHeadingPrefix = this.stateMachine.SCENE_HEADING_PREFIXES.some(prefix => 
+                    currentLine.toUpperCase().trim().startsWith(prefix.toUpperCase())
+                );
+                const justTypedHyphen = currentLine[cursorPosInLine - 1] === '-';
+                const noExistingTimeOfDay = !currentLine.slice(0, cursorPosInLine - 1).includes('-');
+
+                debugLog(`Dropdown Check: 
+                    Scene Heading: ${isSceneHeading}, 
+                    Has Prefix: ${hasSceneHeadingPrefix}, 
+                    Just Typed Hyphen: ${justTypedHyphen}, 
+                    No Existing Time: ${noExistingTimeOfDay}`, 
+                    'log', { consoleOnly: true }
+                );
+
+                if (isSceneHeading && hasSceneHeadingPrefix && justTypedHyphen && noExistingTimeOfDay) {
                     this.showTimeDropdown();
                 } else {
                     this.hideTimeDropdown();
                 }
             }
         } catch (error) {
-            window.utils.debugLog(`Dropdown check error: ${error.message}`, 'error');
+            debugLog(`Dropdown check error: ${error.message}`, 'error', { consoleOnly: true });
             this.hideTimeDropdown();
         }
     }
@@ -175,9 +186,11 @@ export default class ScreenplayEditor {
                 this.timeDropdown.style.top = `${cursorCoords.top + 20}px`;
                 this.timeDropdown.style.left = `${cursorCoords.left}px`;
                 this.timeDropdown.classList.add('active');
+                
+                debugLog('Time of Day Dropdown Shown', 'log', { consoleOnly: true });
             }
         } catch (error) {
-            window.utils.debugLog(`Show dropdown error: ${error.message}`, 'error');
+            debugLog(`Show dropdown error: ${error.message}`, 'error', { consoleOnly: true });
             this.hideTimeDropdown();
         }
     }
