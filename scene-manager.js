@@ -1,4 +1,5 @@
 import StateMachine from './screenplay-state-machine.js';
+import { debugLog } from './utils.js';
 
 export default class SceneManager {
     constructor(stateMachine) {
@@ -6,27 +7,71 @@ export default class SceneManager {
         this.sceneListElement = document.getElementById('scene-list');
         this.scenes = [];
         this.lastContent = '';
+        this.draggedScene = null;
 
-        // Fallback logging mechanism
-        this.log('Scene Manager initialized');
+        // Ensure scene list is set up for drag and drop
+        this.setupDragAndDrop();
     }
 
-    // Fallback logging method
-    log(message, type = 'log') {
-        try {
-            // Try to use imported debugLog if available
-            if (typeof debugLog === 'function') {
-                debugLog(message, type);
-            } else if (window.utils && typeof window.utils.debugLog === 'function') {
-                window.utils.debugLog(message, type);
-            } else {
-                // Fallback to console logging
-                console[type](message);
-            }
-        } catch (error) {
-            // Absolute fallback
-            console.log(message);
+    setupDragAndDrop() {
+        if (!this.sceneListElement) return;
+
+        // Enable drag and drop on the scene list container
+        this.sceneListElement.addEventListener('dragstart', this.handleDragStart.bind(this));
+        this.sceneListElement.addEventListener('dragover', this.handleDragOver.bind(this));
+        this.sceneListElement.addEventListener('drop', this.handleDrop.bind(this));
+        this.sceneListElement.addEventListener('dragend', this.handleDragEnd.bind(this));
+    }
+
+    handleDragStart(event) {
+        // Find the closest scene card
+        const sceneCard = event.target.closest('.scene-card');
+        if (!sceneCard) return;
+
+        // Store the dragged scene's index
+        this.draggedScene = {
+            element: sceneCard,
+            index: parseInt(sceneCard.dataset.sceneIndex, 10)
+        };
+
+        // Set drag effect and add a visual cue
+        event.dataTransfer.setData('text/plain', ''); // Required for Firefox
+        event.dataTransfer.effectAllowed = 'move';
+        sceneCard.classList.add('dragging');
+    }
+
+    handleDragOver(event) {
+        event.preventDefault(); // Allow dropping
+        event.dataTransfer.dropEffect = 'move';
+    }
+
+    handleDrop(event) {
+        event.preventDefault();
+        
+        // Find the target scene card
+        const targetCard = event.target.closest('.scene-card');
+        if (!this.draggedScene || !targetCard) return;
+
+        const targetIndex = parseInt(targetCard.dataset.sceneIndex, 10);
+
+        // Reorder scenes
+        const [removedScene] = this.scenes.splice(this.draggedScene.index, 1);
+        this.scenes.splice(targetIndex, 0, removedScene);
+
+        // Rerender the scene list to reflect new order
+        this.renderSceneList();
+
+        // Log the reordering
+        debugLog(`Scene moved from index ${this.draggedScene.index} to ${targetIndex}`, 'info');
+    }
+
+    handleDragEnd(event) {
+        // Remove dragging visual cue
+        const sceneCard = event.target.closest('.scene-card');
+        if (sceneCard) {
+            sceneCard.classList.remove('dragging');
         }
+        this.draggedScene = null;
     }
 
     updateSceneList(lines) {
@@ -39,10 +84,10 @@ export default class SceneManager {
                 this.lastContent = content;
                 this.scenes = this.extractScenes(lines);
                 this.renderSceneList();
-                this.log(`Scene list updated: ${this.scenes.length} scenes found`);
+                debugLog(`Scene list updated: ${this.scenes.length} scenes found`);
             }
         } catch (error) {
-            this.log(`Scene list update error: ${error.message}`, 'error');
+            debugLog(`Scene list update error: ${error.message}`, 'error');
         }
     }
 
@@ -82,7 +127,7 @@ export default class SceneManager {
 
     renderSceneList() {
         if (!this.sceneListElement) {
-            this.log('Scene list element not found', 'warn');
+            debugLog('Scene list element not found', 'warn');
             return;
         }
 
@@ -94,6 +139,9 @@ export default class SceneManager {
             sceneCard.classList.add('scene-card');
             sceneCard.textContent = scene.heading;
             sceneCard.dataset.sceneIndex = index;
+
+            // Enable dragging
+            sceneCard.setAttribute('draggable', 'true');
 
             sceneCard.addEventListener('click', () => this.navigateToScene(index));
             

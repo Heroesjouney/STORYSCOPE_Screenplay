@@ -103,130 +103,66 @@ body.distraction-free #screenplay-editor {
 /* Editor Container */
 #editor-container {
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
     background-color: var(--secondary-bg);
-    border-radius: 8px;
-    padding: 15px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
-/* Screenplay Editor */
-#screenplay-editor {
-    flex-grow: 1;
-    min-height: 500px;
-    padding: 15px;
+.scene-card {
+    background-color: white;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: 14px;
-    line-height: 1.5;
-    resize: vertical;
-}
-
-/* Toolbar */
-#toolbar {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-#toolbar button {
-    padding: 8px 15px;
-    background-color: var(--accent-color);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-#toolbar button:hover {
-    opacity: 0.9;
-}
-
-/* Dropdowns */
-.dropdown {
+    padding: 10px;
+    cursor: move;
+    transition: all 0.3s ease;
+    user-select: none;
     position: relative;
-    display: inline-block;
-}
-
-.dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: var(--primary-bg);
-    min-width: 160px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    z-index: 1;
-}
-
-.dropdown:hover .dropdown-content {
-    display: block;
-}
-
-.dropdown-content span {
-    color: black;
-    padding: 12px 16px;
-    text-decoration: none;
-    display: block;
-    cursor: pointer;
-}
-
-.dropdown-content span:hover {
-    background-color: #f1f1f1;
-}
-
-/* Metadata Container */
-#metadata-container {
     display: flex;
-    justify-content: space-between;
-    margin-top: 15px;
-    padding: 10px;
-    background-color: var(--secondary-bg);
-    border-radius: 4px;
+    align-items: center;
 }
 
-/* Error and Debug Logging */
-#module-error, #debug-log {
-    margin-bottom: 15px;
-    padding: 10px;
-    border-radius: 4px;
+.scene-card::before {
+    content: '⋮';
+    margin-right: 10px;
+    color: #888;
+    font-size: 20px;
+    opacity: 0.5;
+    cursor: move;
 }
 
-#module-error {
-    background-color: rgba(220, 53, 69, 0.1);
-    border: 1px solid var(--error-color);
-    color: var(--error-color);
+.scene-card:hover {
+    background-color: #f0f0f0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-#debug-log .debug-entry {
-    margin: 5px 0;
-    padding: 5px;
-    border-radius: 3px;
+.scene-card.dragging {
+    opacity: 0.7;
+    transform: scale(0.98);
+    background-color: #e0e0e0;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
-#debug-log .debug-log {
-    color: #333;
+/* Dark Mode Drag and Drop Enhancements */
+body.dark-mode .scene-card {
+    background-color: #333;
+    border-color: #444;
 }
 
-#debug-log .debug-error {
-    background-color: rgba(220, 53, 69, 0.1);
-    color: var(--error-color);
+body.dark-mode .scene-card:hover {
+    background-color: #444;
 }
 
-#debug-log .debug-success {
-    background-color: rgba(40, 167, 69, 0.1);
-    color: #28a745;
+body.dark-mode .scene-card.dragging {
+    background-color: #444;
+    opacity: 0.8;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    #editor-container {
-        flex-direction: column;
-    }
-
-    #screenplay-editor {
-        min-height: 300px;
-    }
-
-    #toolbar {
-        flex-wrap: wrap;
-    }
+/* Drag and Drop Indicator */
+.scene-card.drag-over {
+    border: 2px dashed var(--accent-color);
+    background-color: rgba(0, 123, 255, 0.1);
 }
