@@ -1,3 +1,19 @@
+// Debugging utility functions
+export function debugLog(message, type = 'log') {
+    const debugContainer = document.getElementById('debug-log');
+    
+    // Log to console
+    console[type](message);
+
+    // Log to page if container exists
+    if (debugContainer) {
+        const logEntry = document.createElement('div');
+        logEntry.className = `debug-entry ${type}`;
+        logEntry.textContent = `[${type.toUpperCase()}] ${message}`;
+        debugContainer.appendChild(logEntry);
+    }
+}
+
 // Enhanced Error Logging Utility
 export class ErrorLogger {
     static #errorContainer = null;
@@ -86,22 +102,6 @@ export class ErrorLogger {
                 'error'
             );
         });
-    }
-}
-
-// Debugging utility functions
-export function debugLog(message, type = 'log') {
-    const debugContainer = document.getElementById('debug-log');
-    
-    // Log to console
-    console[type](message);
-
-    // Log to page if container exists
-    if (debugContainer) {
-        const logEntry = document.createElement('div');
-        logEntry.className = `debug-entry ${type}`;
-        logEntry.textContent = `[${type.toUpperCase()}] ${message}`;
-        debugContainer.appendChild(logEntry);
     }
 }
 
