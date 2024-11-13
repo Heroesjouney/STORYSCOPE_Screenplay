@@ -122,7 +122,7 @@ body.distraction-free #screenplay-editor {
 }
 
 #dropdowns {
-    position: absolute;
+    position: relative;
     z-index: 100;
 }
 
@@ -132,7 +132,7 @@ body.distraction-free #screenplay-editor {
     background-color: white;
     min-width: 160px;
     box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    z-index: 10;
+    z-index: 1000;
     border-radius: 4px;
     overflow: hidden;
 }
@@ -156,11 +156,18 @@ body.distraction-free #screenplay-editor {
 }
 
 /* Time of Day Dropdown Specific Styling */
+#time-of-day-dropdown,
+#transition-dropdown {
+    position: absolute;
+    z-index: 1000;
+}
+
 #time-of-day-dropdown .dropdown-content,
 #transition-dropdown .dropdown-content {
     width: 150px;
     max-height: 200px;
     overflow-y: auto;
+    display: none;
 }
 
 #time-of-day-dropdown .dropdown-content span,
@@ -172,4 +179,10 @@ body.distraction-free #screenplay-editor {
 #time-of-day-dropdown .dropdown-content span:last-child,
 #transition-dropdown .dropdown-content span:last-child {
     border-bottom: none;
+}
+
+/* Ensure dropdowns are visible when active */
+#time-of-day-dropdown.active .dropdown-content,
+#transition-dropdown.active .dropdown-content {
+    display: block;
 }

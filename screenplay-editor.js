@@ -43,11 +43,17 @@ export default class ScreenplayEditor {
             const timeDropdownContent = this.timeDropdown.querySelector('.dropdown-content');
             if (timeDropdownContent) {
                 timeDropdownContent.querySelectorAll('span').forEach(span => {
-                    span.addEventListener('click', () => {
+                    span.addEventListener('click', (event) => {
+                        event.stopPropagation(); // Prevent event from bubbling
                         const timeValue = span.dataset.value;
                         this.insertTimeOfDay(timeValue);
                         this.hideTimeDropdown();
                     });
+                });
+
+                // Add click event to dropdown to prevent immediate closing
+                this.timeDropdown.addEventListener('click', (event) => {
+                    event.stopPropagation();
                 });
             }
         }
@@ -168,6 +174,7 @@ export default class ScreenplayEditor {
                 this.timeDropdown.style.position = 'absolute';
                 this.timeDropdown.style.top = `${cursorCoords.top + 20}px`;
                 this.timeDropdown.style.left = `${cursorCoords.left}px`;
+                this.timeDropdown.classList.add('active');
             }
         } catch (error) {
             window.utils.debugLog(`Show dropdown error: ${error.message}`, 'error');
@@ -199,9 +206,11 @@ export default class ScreenplayEditor {
     hideTimeDropdown() {
         if (this.timeDropdown) {
             this.timeDropdown.style.display = 'none';
+            this.timeDropdown.classList.remove('active');
         }
     }
 
+    // Rest of the methods remain unchanged
     handleInput(event) {
         try {
             const content = this.editorElement.value;
@@ -221,6 +230,7 @@ export default class ScreenplayEditor {
         }
     }
 
+    // Remaining methods from the previous implementation
     handleTabKey(event) {
         const isShiftPressed = event.shiftKey;
         this.formatter.handleTabKey(isShiftPressed);
