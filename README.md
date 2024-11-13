@@ -55,6 +55,34 @@
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+### Deployment on Render.com
+
+#### Deployment Configuration
+- **Platform**: Render.com Static Site
+- **Build Command**: `npm install`
+- **Publish Directory**: `.`
+- **Node Version**: 14.0.0+
+
+#### Deployment Steps
+1. Connect your GitHub repository to Render
+2. Select the repository
+3. Configure the following settings:
+   - Name: STORYSCOPE_Screenplay
+   - Branch: main
+   - Build Command: `npm install`
+   - Publish Directory: `.`
+4. Deploy the site
+
+#### Environment Considerations
+- The project uses a custom Node.js server (server.js)
+- Requires no additional environment variables for basic deployment
+- Serves static files directly from the root directory
+
+### Troubleshooting Render Deployment
+- Ensure your GitHub repository is public or Render has access
+- Verify Node.js version compatibility
+- Check Render build logs for any deployment issues
+
 ### License
 Distributed under the MIT License. See `LICENSE` for more information.
 
