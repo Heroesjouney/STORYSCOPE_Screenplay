@@ -1,15 +1,21 @@
 // Debugging utility functions
 export function debugLog(message, type = 'log') {
-    const debugContainer = document.getElementById('debug-log');
+    // Ensure type is a valid console method
+    const logType = ['log', 'warn', 'error', 'info'].includes(type) ? type : 'log';
     
-    // Log to console
-    console[type](message);
+    // Safe console logging
+    if (typeof console !== 'undefined' && typeof console[logType] === 'function') {
+        console[logType](message);
+    } else {
+        console.log(message);
+    }
 
     // Log to page if container exists
+    const debugContainer = document.getElementById('debug-log');
     if (debugContainer) {
         const logEntry = document.createElement('div');
-        logEntry.className = `debug-entry ${type}`;
-        logEntry.textContent = `[${type.toUpperCase()}] ${message}`;
+        logEntry.className = `debug-entry ${logType}`;
+        logEntry.textContent = `[${logType.toUpperCase()}] ${message}`;
         debugContainer.appendChild(logEntry);
     }
 }
@@ -26,17 +32,28 @@ export class ErrorLogger {
         // Create log entry
         const logEntry = {
             timestamp: new Date().toISOString(),
-            message: error instanceof Error ? error.message : error,
+            message: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : 'No stack trace',
             context,
-            severity
+            severity: ['error', 'warn', 'info', 'log'].includes(severity) ? severity : 'error'
         };
 
-        // Log to console
-        console[severity](
-            `[${severity.toUpperCase()}] ${context}: ${logEntry.message}`,
-            logEntry
-        );
+        // Safe logging
+        try {
+            if (typeof console !== 'undefined' && typeof console[logEntry.severity] === 'function') {
+                console[logEntry.severity](
+                    `[${logEntry.severity.toUpperCase()}] ${context}: ${logEntry.message}`,
+                    logEntry
+                );
+            } else {
+                console.log(
+                    `[ERROR] ${context}: ${logEntry.message}`,
+                    logEntry
+                );
+            }
+        } catch (logError) {
+            console.log('Logging failed', logEntry);
+        }
 
         // Display on page if debug container exists
         this.displayErrorOnPage(logEntry);

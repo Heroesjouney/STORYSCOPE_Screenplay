@@ -1,42 +1,47 @@
 import config from './config.js';
-import { ErrorLogger } from './utils.js';
+import { ErrorLogger, debugLog } from './utils.js';
 import ExportService from './export-service.js';
 import StateMachine from './screenplay-state-machine.js';
 import SceneManager from './scene-manager.js';
 import ScreenplayEditor from './screenplay-editor.js';
 
-// Fallback logging function
-function fallbackDebugLog(message, type = 'log') {
-    console[type](message);
-    
-    // Try to log to page if debug container exists
-    const debugContainer = document.getElementById('debug-log');
-    if (debugContainer) {
-        const logEntry = document.createElement('div');
-        logEntry.className = `debug-entry ${type}`;
-        logEntry.textContent = `[${type.toUpperCase()}] ${message}`;
-        debugContainer.appendChild(logEntry);
+// Robust logging function with multiple fallback mechanisms
+function safeLog(message, type = 'log') {
+    // Validate logging type
+    const validTypes = ['log', 'warn', 'error', 'info'];
+    const safeType = validTypes.includes(type) ? type : 'log';
+
+    try {
+        // Primary logging method
+        if (typeof debugLog === 'function') {
+            debugLog(message, safeType);
+            return;
+        }
+
+        // Fallback to console logging
+        if (typeof console !== 'undefined' && typeof console[safeType] === 'function') {
+            console[safeType](message);
+        } else {
+            console.log(message);
+        }
+
+        // Attempt to log to page
+        const debugContainer = document.getElementById('debug-log');
+        if (debugContainer) {
+            const logEntry = document.createElement('div');
+            logEntry.className = `debug-entry ${safeType}`;
+            logEntry.textContent = `[${safeType.toUpperCase()}] ${message}`;
+            debugContainer.appendChild(logEntry);
+        }
+    } catch (error) {
+        // Absolute fallback
+        console.log(message);
     }
 }
 
 // Global utility object to simulate window-based interactions
 const utils = {
-    debugLog: (message, type = 'log') => {
-        try {
-            // First, try to use the imported debugLog
-            import('./utils.js').then(module => {
-                if (typeof module.debugLog === 'function') {
-                    module.debugLog(message, type);
-                } else {
-                    fallbackDebugLog(message, type);
-                }
-            }).catch(() => {
-                fallbackDebugLog(message, type);
-            });
-        } catch (error) {
-            fallbackDebugLog(message, type);
-        }
-    }
+    debugLog: safeLog
 };
 
 // Global export service
@@ -77,8 +82,8 @@ export function initializeScreenplayEditor() {
         // Initialize error handling
         ErrorLogger.setupGlobalErrorHandling();
 
-        // Use fallback logging
-        utils.debugLog('Screenplay Editor Initialized', 'success');
+        // Use safe logging
+        safeLog('Screenplay Editor Initialized', 'success');
         return screenplayEditor;
     } catch (error) {
         // Fallback error logging
@@ -118,14 +123,9 @@ export function setupToolbarEvents(screenplayEditor) {
             const exportFormat = config.get('export.defaultFormat', 'pdf');
             
             ExportService.export(content, exportFormat);
-            utils.debugLog(`Exported screenplay in ${exportFormat} format`, 'info');
+            safeLog(`Exported screenplay in ${exportFormat} format`, 'info');
         } catch (error) {
-            console.error('Export Failed:', error);
-            try {
-                ErrorLogger.log(error, 'Export Failed');
-            } catch (logError) {
-                console.error('Fallback error logging failed:', logError);
-            }
+            safeLog(`Export Failed: ${error.message}`, 'error');
         }
     });
 
@@ -137,7 +137,7 @@ export function setupToolbarEvents(screenplayEditor) {
         config.set('ui.darkMode', newMode);
         document.body.classList.toggle('dark-mode', newMode);
         
-        utils.debugLog(`Dark Mode ${newMode ? 'Enabled' : 'Disabled'}`, 'info');
+        safeLog(`Dark Mode ${newMode ? 'Enabled' : 'Disabled'}`, 'info');
     });
 
     // Distraction Free Mode Toggle
@@ -148,7 +148,7 @@ export function setupToolbarEvents(screenplayEditor) {
         config.set('ui.distractionFreeMode', newMode);
         document.body.classList.toggle('distraction-free', newMode);
         
-        utils.debugLog(`Distraction Free Mode ${newMode ? 'Enabled' : 'Disabled'}`, 'info');
+        safeLog(`Distraction Free Mode ${newMode ? 'Enabled' : 'Disabled'}`, 'info');
     });
 }
 
