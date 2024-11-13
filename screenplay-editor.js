@@ -16,6 +16,7 @@ export default class ScreenplayEditor {
         
         this.editorElement = document.getElementById('screenplay-editor');
         this.timeDropdown = document.getElementById('time-of-day-dropdown');
+        this.dropdownContainer = document.getElementById('dropdowns');
         this.options = options;
         this.updatesEnabled = options.suppressInitialUpdates !== true;
         this.lastContent = '';
@@ -25,18 +26,6 @@ export default class ScreenplayEditor {
         this.setupDropdowns();
         
         window.utils.debugLog('Screenplay Editor initialized');
-    }
-
-    initializeEditor() {
-        try {
-            this.editorElement.value = '';
-            this.editorElement.style.whiteSpace = 'pre-wrap';
-            this.editorElement.style.wordWrap = 'break-word';
-            this.editorElement.style.overflowWrap = 'break-word';
-            this.editorElement.style.boxSizing = 'border-box';
-        } catch (error) {
-            window.utils.debugLog(`Editor initialization error: ${error.message}`, 'error');
-        }
     }
 
     setupDropdowns() {
@@ -60,79 +49,6 @@ export default class ScreenplayEditor {
         }
     }
 
-    insertTimeOfDay(timeValue) {
-        const content = this.editorElement.value;
-        const cursorPos = this.editorElement.selectionStart;
-        const lines = content.split('\n');
-        const currentLineIndex = this.findCurrentLineIndex(lines, cursorPos);
-        
-        if (currentLineIndex !== -1) {
-            const currentLine = lines[currentLineIndex];
-            if (this.stateMachine.detectContext(currentLine) === 'SCENE_HEADING') {
-                // Remove any existing time of day and hyphen
-                let newLine = currentLine;
-                if (currentLine.includes('-')) {
-                    newLine = currentLine.split('-')[0].trim();
-    }
-
-                // Add the new time of day
-                lines[currentLineIndex] = `${newLine} - ${timeValue}`;
-                
-                // Update content
-                this.editorElement.value = lines.join('\n');
-                
-                // Update cursor position to end of line
-                const newPos = lines.slice(0, currentLineIndex + 1).join('\n').length;
-                this.editorElement.setSelectionRange(newPos, newPos);
-            }
-        }
-    }
-
-    enableUpdates() {
-        this.updatesEnabled = true;
-    }
-
-    setupEventListeners() {
-        let inputTimeout;
-        this.editorElement.addEventListener('input', (event) => {
-            if (!this.updatesEnabled) return;
-            
-            clearTimeout(inputTimeout);
-            inputTimeout = setTimeout(() => {
-                this.handleInput(event);
-            }, 100);
-
-            // Handle dropdown visibility
-            this.checkForTimeDropdown();
-        });
-
-        this.editorElement.addEventListener('keydown', (event) => {
-            if (!this.updatesEnabled) return;
-            
-            switch(event.key) {
-                case 'Tab':
-                    event.preventDefault();
-                    this.handleTabKey(event);
-                    break;
-                case 'Enter':
-                    this.handleEnterKey(event);
-                    break;
-                case 'Escape':
-                    this.hideTimeDropdown();
-                    break;
-            }
-        });
-
-        // Hide dropdown when clicking outside
-        document.addEventListener('click', (event) => {
-            if (this.timeDropdown && 
-                !this.timeDropdown.contains(event.target) && 
-                !this.editorElement.contains(event.target)) {
-                this.hideTimeDropdown();
-            }
-        });
-    }
-
     checkForTimeDropdown() {
         try {
             const content = this.editorElement.value;
@@ -144,7 +60,7 @@ export default class ScreenplayEditor {
                 const currentLine = lines[currentLineIndex];
                 const cursorPosInLine = cursorPos - lines.slice(0, currentLineIndex).join('\n').length - (currentLineIndex > 0 ? 1 : 0);
                 
-                // Improved dropdown detection logic
+                // Comprehensive dropdown detection logic
                 const isSceneHeading = this.stateMachine.detectContext(currentLine) === 'SCENE_HEADING';
                 const hasSceneHeadingPrefix = this.stateMachine.SCENE_HEADING_PREFIXES.some(prefix => 
                     currentLine.toUpperCase().trim().startsWith(prefix.toUpperCase())
@@ -152,12 +68,11 @@ export default class ScreenplayEditor {
                 const justTypedHyphen = currentLine[cursorPosInLine - 1] === '-';
                 const noExistingTimeOfDay = !currentLine.slice(0, cursorPosInLine - 1).includes('-');
 
-                debugLog(`Dropdown Check: 
+                console.log(`Dropdown Check: 
                     Scene Heading: ${isSceneHeading}, 
                     Has Prefix: ${hasSceneHeadingPrefix}, 
                     Just Typed Hyphen: ${justTypedHyphen}, 
-                    No Existing Time: ${noExistingTimeOfDay}`, 
-                    'log', { consoleOnly: true }
+                    No Existing Time: ${noExistingTimeOfDay}`
                 );
 
                 if (isSceneHeading && hasSceneHeadingPrefix && justTypedHyphen && noExistingTimeOfDay) {
@@ -167,13 +82,13 @@ export default class ScreenplayEditor {
                 }
             }
         } catch (error) {
-            debugLog(`Dropdown check error: ${error.message}`, 'error', { consoleOnly: true });
+            console.error(`Dropdown check error: ${error.message}`);
             this.hideTimeDropdown();
         }
     }
 
     showTimeDropdown() {
-        if (!this.timeDropdown) return;
+        if (!this.timeDropdown || !this.dropdownContainer) return;
 
         try {
             // Get cursor position
@@ -181,16 +96,19 @@ export default class ScreenplayEditor {
             const cursorCoords = this.getCursorCoordinates();
 
             if (cursorCoords) {
+                // Position dropdown relative to the dropdown container
+                const containerRect = this.dropdownContainer.getBoundingClientRect();
+                
                 this.timeDropdown.style.display = 'block';
                 this.timeDropdown.style.position = 'absolute';
-                this.timeDropdown.style.top = `${cursorCoords.top + 20}px`;
-                this.timeDropdown.style.left = `${cursorCoords.left}px`;
+                this.timeDropdown.style.top = `${cursorCoords.top - containerRect.top + 20}px`;
+                this.timeDropdown.style.left = `${cursorCoords.left - containerRect.left}px`;
                 this.timeDropdown.classList.add('active');
                 
-                debugLog('Time of Day Dropdown Shown', 'log', { consoleOnly: true });
+                console.log('Time of Day Dropdown Shown');
             }
         } catch (error) {
-            debugLog(`Show dropdown error: ${error.message}`, 'error', { consoleOnly: true });
+            console.error(`Show dropdown error: ${error.message}`);
             this.hideTimeDropdown();
         }
     }
