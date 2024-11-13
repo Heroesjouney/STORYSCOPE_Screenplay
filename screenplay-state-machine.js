@@ -13,10 +13,11 @@ export default class ScreenplayStateMachine {
             currentCharacter: null
         };
 
+        // Expanded to match exact guidelines
         this.CONTEXT_REGEX = {
             SCENE_HEADING: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)[\s\w-]+/i,
             CHARACTER_NAME: /^[A-Z][A-Z\s]+$/,
-            TRANSITION: /^(FADE IN:|FADE OUT:|CUT TO:)/i
+            TRANSITION: /^(FADE IN:|FADE OUT:|CUT TO:|DISSOLVE TO:|SMASH CUT TO:)/i
         };
 
         this.SCENE_HEADING_PREFIXES = [
@@ -24,33 +25,66 @@ export default class ScreenplayStateMachine {
             'int.', 'ext.', 'est.', 'int/ext.', 'i/e.'
         ];
 
+        // Updated formatting rules to match exact screenplay guidelines
         this.FORMATTING_RULES = {
             SCENE_HEADING: {
                 pattern: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)\s*[A-Z0-9\s]+(-\s*(?:DAY|NIGHT|MORNING|AFTERNOON|EVENING))?$/i,
-                margins: { top: 1, bottom: 1, left: 0, right: 0 }
+                margins: { 
+                    top: 1, 
+                    bottom: 1, 
+                    left: 1.5,  // 1.5 inches left margin
+                    right: 1    // 1 inch right margin
+                }
             },
             ACTION: {
                 pattern: /^[A-Za-z0-9\s]+$/,
-                margins: { top: 0, bottom: 1, left: 0, right: 0 }
+                margins: { 
+                    top: 0, 
+                    bottom: 1, 
+                    left: 1.5,  // 1.5 inches left margin
+                    right: 1    // 1 inch right margin
+                }
             },
             CHARACTER_NAME: {
                 pattern: /^[A-Z\s]+$/,
-                margins: { top: 1, bottom: 0, left: 'center', right: 'center' }
+                margins: { 
+                    top: 1.5,   // 1.5 inches from top
+                    bottom: 0, 
+                    left: 'center', 
+                    right: 'center' 
+                }
             },
             DIALOGUE: {
                 pattern: /^(\s{4})[A-Za-z]/,
-                margins: { top: 0, bottom: 1, left: 4, right: 4 }
+                margins: { 
+                    top: 0, 
+                    bottom: 1, 
+                    left: 2.5,  // 2.5 inches from left
+                    right: 2.5  // 2.5 inches from right
+                }
             },
             PARENTHETICAL: {
                 pattern: /^\s*\([^)]+\)$/,
-                margins: { top: 0, bottom: 0, left: 4, right: 4 }
+                margins: { 
+                    top: 0, 
+                    bottom: 0, 
+                    left: 2.5,  // 2.5 inches from left
+                    right: 2.5  // 2.5 inches from right
+                }
             },
             TRANSITION: {
                 pattern: /^(FADE IN:|FADE OUT:|CUT TO:|DISSOLVE TO:|SMASH CUT TO:)$/i,
-                margins: { top: 1, bottom: 1, left: 'right', right: 0 }
+                margins: { 
+                    top: 1, 
+                    bottom: 1, 
+                    left: 'right', 
+                    right: 1 
+                }
             }
         };
     }
+
+    // Existing methods remain the same...
 
     formatLine(line) {
         const trimmedLine = line.trim();
