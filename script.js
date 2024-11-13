@@ -1,15 +1,41 @@
 import config from './config.js';
-import { ErrorLogger, debugLog } from './utils.js';
+import { ErrorLogger } from './utils.js';
 import ExportService from './export-service.js';
 import StateMachine from './screenplay-state-machine.js';
 import SceneManager from './scene-manager.js';
 import ScreenplayEditor from './screenplay-editor.js';
 
+// Fallback logging function
+function fallbackDebugLog(message, type = 'log') {
+    console[type](message);
+    
+    // Try to log to page if debug container exists
+    const debugContainer = document.getElementById('debug-log');
+    if (debugContainer) {
+        const logEntry = document.createElement('div');
+        logEntry.className = `debug-entry ${type}`;
+        logEntry.textContent = `[${type.toUpperCase()}] ${message}`;
+        debugContainer.appendChild(logEntry);
+    }
+}
+
 // Global utility object to simulate window-based interactions
 const utils = {
     debugLog: (message, type = 'log') => {
-        console.log(message);
-        debugLog(message, type);
+        try {
+            // First, try to use the imported debugLog
+            import('./utils.js').then(module => {
+                if (typeof module.debugLog === 'function') {
+                    module.debugLog(message, type);
+                } else {
+                    fallbackDebugLog(message, type);
+                }
+            }).catch(() => {
+                fallbackDebugLog(message, type);
+            });
+        } catch (error) {
+            fallbackDebugLog(message, type);
+        }
     }
 };
 
@@ -51,10 +77,21 @@ export function initializeScreenplayEditor() {
         // Initialize error handling
         ErrorLogger.setupGlobalErrorHandling();
 
-        debugLog('Screenplay Editor Initialized', 'success');
+        // Use fallback logging
+        utils.debugLog('Screenplay Editor Initialized', 'success');
         return screenplayEditor;
     } catch (error) {
-        ErrorLogger.log(error, 'Editor Initialization Failed');
+        // Fallback error logging
+        console.error('Editor Initialization Failed:', error);
+        
+        // Try to use ErrorLogger if available
+        try {
+            ErrorLogger.log(error, 'Editor Initialization Failed');
+        } catch (logError) {
+            console.error('Fallback error logging failed:', logError);
+        }
+
+        // Rethrow the original error
         throw error;
     }
 }
@@ -65,7 +102,13 @@ export function setupToolbarEvents(screenplayEditor) {
     const distractionFreeToggle = document.getElementById('toggle-distraction-free');
 
     if (!exportButton || !darkModeToggle || !distractionFreeToggle) {
-        throw new Error('Toolbar elements not found');
+        const missingElements = [
+            !exportButton && 'export button',
+            !darkModeToggle && 'dark mode toggle',
+            !distractionFreeToggle && 'distraction-free toggle'
+        ].filter(Boolean).join(', ');
+        
+        throw new Error(`Toolbar elements not found: ${missingElements}`);
     }
 
     // Export functionality
@@ -75,9 +118,14 @@ export function setupToolbarEvents(screenplayEditor) {
             const exportFormat = config.get('export.defaultFormat', 'pdf');
             
             ExportService.export(content, exportFormat);
-            debugLog(`Exported screenplay in ${exportFormat} format`, 'info');
+            utils.debugLog(`Exported screenplay in ${exportFormat} format`, 'info');
         } catch (error) {
-            ErrorLogger.log(error, 'Export Failed');
+            console.error('Export Failed:', error);
+            try {
+                ErrorLogger.log(error, 'Export Failed');
+            } catch (logError) {
+                console.error('Fallback error logging failed:', logError);
+            }
         }
     });
 
@@ -89,7 +137,7 @@ export function setupToolbarEvents(screenplayEditor) {
         config.set('ui.darkMode', newMode);
         document.body.classList.toggle('dark-mode', newMode);
         
-        debugLog(`Dark Mode ${newMode ? 'Enabled' : 'Disabled'}`, 'info');
+        utils.debugLog(`Dark Mode ${newMode ? 'Enabled' : 'Disabled'}`, 'info');
     });
 
     // Distraction Free Mode Toggle
@@ -100,7 +148,7 @@ export function setupToolbarEvents(screenplayEditor) {
         config.set('ui.distractionFreeMode', newMode);
         document.body.classList.toggle('distraction-free', newMode);
         
-        debugLog(`Distraction Free Mode ${newMode ? 'Enabled' : 'Disabled'}`, 'info');
+        utils.debugLog(`Distraction Free Mode ${newMode ? 'Enabled' : 'Disabled'}`, 'info');
     });
 }
 

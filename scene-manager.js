@@ -6,7 +6,27 @@ export default class SceneManager {
         this.sceneListElement = document.getElementById('scene-list');
         this.scenes = [];
         this.lastContent = '';
-        window.utils.debugLog('Scene Manager initialized');
+
+        // Fallback logging mechanism
+        this.log('Scene Manager initialized');
+    }
+
+    // Fallback logging method
+    log(message, type = 'log') {
+        try {
+            // Try to use imported debugLog if available
+            if (typeof debugLog === 'function') {
+                debugLog(message, type);
+            } else if (window.utils && typeof window.utils.debugLog === 'function') {
+                window.utils.debugLog(message, type);
+            } else {
+                // Fallback to console logging
+                console[type](message);
+            }
+        } catch (error) {
+            // Absolute fallback
+            console.log(message);
+        }
     }
 
     updateSceneList(lines) {
@@ -19,10 +39,10 @@ export default class SceneManager {
                 this.lastContent = content;
                 this.scenes = this.extractScenes(lines);
                 this.renderSceneList();
-                window.utils.debugLog(`Scene list updated: ${this.scenes.length} scenes found`);
+                this.log(`Scene list updated: ${this.scenes.length} scenes found`);
             }
         } catch (error) {
-            window.utils.debugLog(`Scene list update error: ${error.message}`, 'error');
+            this.log(`Scene list update error: ${error.message}`, 'error');
         }
     }
 
@@ -62,7 +82,7 @@ export default class SceneManager {
 
     renderSceneList() {
         if (!this.sceneListElement) {
-            console.warn('Scene list element not found');
+            this.log('Scene list element not found', 'warn');
             return;
         }
 
