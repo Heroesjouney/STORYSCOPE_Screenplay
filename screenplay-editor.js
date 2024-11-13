@@ -1,5 +1,6 @@
 import StateMachine from './screenplay-state-machine.js';
 import SceneManager from './scene-manager.js';
+import ScreenplayFormatter from './screenplay-formatter.js';
 
 export default class ScreenplayEditor {
     constructor(options = {}) {
@@ -8,6 +9,9 @@ export default class ScreenplayEditor {
         
         // Pass StateMachine to SceneManager
         this.sceneManager = options.sceneManager || new SceneManager(this.stateMachine);
+        
+        // Initialize the formatter with the stateMachine
+        this.formatter = new ScreenplayFormatter(this.stateMachine);
         
         this.editorElement = document.getElementById('screenplay-editor');
         this.timeDropdown = document.getElementById('time-of-day-dropdown');
@@ -205,77 +209,39 @@ export default class ScreenplayEditor {
             if (content === this.lastContent) return;
             this.lastContent = content;
 
-            const lines = content.split('\n');
-            const currentLineIndex = this.findCurrentLineIndex(lines, this.editorElement.selectionStart);
+            const cursorPosition = this.editorElement.selectionStart;
+            const { formattedContent, newCursorPosition } = this.formatter.handleInput(content, cursorPosition);
             
-            if (currentLineIndex !== -1) {
-                const currentLine = lines[currentLineIndex];
-                const formattedLine = this.stateMachine.formatLine(currentLine);
-                
-                if (formattedLine !== currentLine) {
-                    lines[currentLineIndex] = formattedLine;
-                    
-                    const cursorPosition = this.editorElement.selectionStart;
-                    const previousContent = lines.slice(0, currentLineIndex).join('\n');
-                    const newCursorPosition = previousContent.length + formattedLine.length + 1;
-                    
-                    this.editorElement.value = lines.join('\n');
-                    this.editorElement.setSelectionRange(newCursorPosition, newCursorPosition);
-                }
-            }
+            this.editorElement.value = formattedContent;
+            this.editorElement.setSelectionRange(newCursorPosition, newCursorPosition);
 
-            this.sceneManager.updateSceneList(lines);
+            this.sceneManager.updateSceneList(formattedContent.split('\n'));
         } catch (error) {
             window.utils.debugLog(`Input handling error: ${error.message}`, 'error');
         }
     }
 
-    handleKeyDown(event) {
-        try {
-            switch(event.key) {
-                case 'Tab':
-                    event.preventDefault();
-                    this.handleTabKey(event);
-                    break;
-                case 'Enter':
-                    this.handleEnterKey(event);
-                    break;
-                case 'Escape':
-                    this.hideTimeDropdown();
-                    break;
-            }
-        } catch (error) {
-            window.utils.debugLog(`Key handling error: ${error.message}`, 'error');
-        }
-    }
-
     handleTabKey(event) {
         const isShiftPressed = event.shiftKey;
-        this.stateMachine.handleTab(isShiftPressed);
+        this.formatter.handleTabKey(isShiftPressed);
         
         const content = this.editorElement.value;
-        const lines = content.split('\n');
-        const currentLineIndex = this.findCurrentLineIndex(lines, this.editorElement.selectionStart);
+        const cursorPosition = this.editorElement.selectionStart;
+        const { formattedContent, newCursorPosition } = this.formatter.handleInput(content, cursorPosition);
         
-        if (currentLineIndex !== -1) {
-            const currentLine = lines[currentLineIndex];
-            const formattedLine = this.stateMachine.formatLine(currentLine);
-            lines[currentLineIndex] = formattedLine;
-            
-            const cursorPosition = this.editorElement.selectionStart;
-            this.editorElement.value = lines.join('\n');
-            this.editorElement.setSelectionRange(cursorPosition, cursorPosition);
-        }
+        this.editorElement.value = formattedContent;
+        this.editorElement.setSelectionRange(newCursorPosition, newCursorPosition);
     }
 
     handleEnterKey(event) {
         const content = this.editorElement.value;
+        const cursorPosition = this.editorElement.selectionStart;
         const lines = content.split('\n');
-        const currentLineIndex = this.findCurrentLineIndex(lines, this.editorElement.selectionStart);
+        const currentLineIndex = this.findCurrentLineIndex(lines, cursorPosition);
         
         if (currentLineIndex !== -1) {
             const currentLine = lines[currentLineIndex];
-            this.stateMachine.handleEnter(currentLine);
+            this.formatter.handleEnterKey(currentLine);
             
             setTimeout(() => {
                 if (!this.updatesEnabled) return;
@@ -285,7 +251,7 @@ export default class ScreenplayEditor {
                 
                 if (newLineIndex !== -1) {
                     const newLine = newLines[newLineIndex];
-                    const formattedLine = this.stateMachine.formatLine(newLine);
+                    const formattedLine = this.formatter.formatLine(newLine);
                     newLines[newLineIndex] = formattedLine;
                     
                     const cursorPosition = this.editorElement.selectionStart;

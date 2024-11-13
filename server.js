@@ -90,6 +90,19 @@ const server = http.createServer((req, res) => {
     });
 });
 
+// Add route for screenplay-editor.js
+server.get('/screenplay-editor.js', (req, res) => {
+    fs.readFile(path.join(__dirname, 'screenplay-editor.js'), (error, content) => {
+        if (error) {
+            res.writeHead(500);
+            res.end('Error loading screenplay-editor.js');
+        } else {
+            res.writeHead(200, { 'Content-Type': 'application/javascript' });
+            res.end(content, 'utf-8');
+        }
+    });
+});
+
 server.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}/`);
 });
