@@ -10,86 +10,17 @@
     --dark-bg: #121212;
     --dark-text: #e0e0e0;
     --dark-secondary-bg: #1e1e1e;
-    --dark-accent-color: #4a90e2;
-    
-    /* Typography */
-    --font-family: 'Courier New', Courier, monospace;
-    --font-size-base: 14px;
-    
-    /* Transitions */
-    --transition-speed: 0.3s;
 }
 
 /* Base Styles */
 body {
-    font-family: var(--font-family);
+    font-family: 'Courier New', Courier, monospace;
     line-height: 1.6;
     background-color: var(--primary-bg);
     color: var(--primary-text);
-    transition: all var(--transition-speed) ease;
+    transition: all 0.3s ease;
     margin: 0;
     padding: 20px;
-}
-
-/* Dark Mode Styles */
-body.dark-mode {
-    background-color: var(--dark-bg);
-    color: var(--dark-text);
-}
-
-body.dark-mode #editor-container {
-    background-color: var(--dark-secondary-bg);
-}
-
-body.dark-mode #toolbar button {
-    background-color: var(--accent-color);
-    color: var(--dark-text);
-}
-
-body.dark-mode #toolbar button:hover {
-    opacity: 0.9;
-}
-
-body.dark-mode .dropdown-content {
-    background-color: var(--dark-bg);
-}
-
-body.dark-mode .dropdown-content span {
-    color: var(--dark-text);
-}
-
-body.dark-mode .dropdown-content span:hover {
-    background-color: var(--dark-secondary-bg);
-}
-
-body.dark-mode #metadata-container {
-    background-color: var(--dark-secondary-bg);
-}
-
-body.dark-mode #module-error {
-    background-color: rgba(220, 53, 69, 0.1);
-    border: 1px solid var(--error-color);
-    color: var(--error-color);
-}
-
-body.dark-mode #debug-log .debug-entry {
-    margin: 5px 0;
-    padding: 5px;
-    border-radius: 3px;
-}
-
-body.dark-mode #debug-log .debug-log {
-    color: var(--dark-text);
-}
-
-body.dark-mode #debug-log .debug-error {
-    background-color: rgba(220, 53, 69, 0.1);
-    color: var(--error-color);
-}
-
-body.dark-mode #debug-log .debug-success {
-    background-color: rgba(40, 167, 69, 0.1);
-    color: #28a745;
 }
 
 /* Distraction Free Mode */
@@ -127,7 +58,7 @@ body.distraction-free #screenplay-editor {
     padding: 15px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    font-size: var(--font-size-base);
+    font-size: 14px;
     line-height: 1.5;
     resize: vertical;
 }
@@ -147,7 +78,7 @@ body.distraction-free #screenplay-editor {
     border-radius: 4px;
     padding: 10px;
     cursor: move;
-    transition: all var(--transition-speed) ease;
+    transition: all 0.3s ease;
     user-select: none;
     display: flex;
     align-items: center;
@@ -178,35 +109,45 @@ body.distraction-free #screenplay-editor {
     box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 
-/* Dark Mode */
-body.dark-mode {
-    background-color: var(--dark-bg);
-    color: var(--dark-text);
-}
-
-body.dark-mode #editor-container {
-    background-color: var(--dark-secondary-bg);
-}
-
-body.dark-mode .scene-card {
-    background-color: #333;
-    border-color: #444;
-    color: var(--dark-text);
-}
-
-body.dark-mode .scene-card:hover {
-    background-color: #444;
-}
-
-body.dark-mode .scene-card.dragging {
-    background-color: #444;
-    opacity: 0.8;
-}
-
 /* Drag and Drop Indicator */
 .scene-card.drag-over {
     border: 2px dashed var(--accent-color);
     background-color: rgba(0, 123, 255, 0.1);
+}
+
+/* Dropdowns */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: white;
+    min-width: 160px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    z-index: 10;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dropdown:hover .dropdown-content,
+.dropdown-content:hover {
+    display: block;
+}
+
+.dropdown-content span {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.dropdown-content span:hover {
+    background-color: #f1f1f1;
 }
 
 /* Toolbar */
@@ -223,11 +164,11 @@ body.dark-mode .scene-card.dragging {
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    transition: opacity var(--transition-speed);
+    transition: opacity 0.3s;
 }
 
-body.dark-mode #toolbar button {
-    background-color: var(--dark-accent-color);
+#toolbar button:hover {
+    opacity: 0.9;
 }
 
 /* Responsive Design */
