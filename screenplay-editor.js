@@ -21,11 +21,29 @@ export default class ScreenplayEditor {
         this.updatesEnabled = options.suppressInitialUpdates !== true;
         this.lastContent = '';
         
+        // Restore initializeEditor method
         this.initializeEditor();
         this.setupEventListeners();
         this.setupDropdowns();
         
         window.utils.debugLog('Screenplay Editor initialized');
+    }
+
+    // Restored initializeEditor method
+    initializeEditor() {
+        try {
+            if (!this.editorElement) {
+                throw new Error('Editor element not found');
+            }
+
+            this.editorElement.value = '';
+            this.editorElement.style.whiteSpace = 'pre-wrap';
+            this.editorElement.style.wordWrap = 'break-word';
+            this.editorElement.style.overflowWrap = 'break-word';
+            this.editorElement.style.boxSizing = 'border-box';
+        } catch (error) {
+            window.utils.debugLog(`Editor initialization error: ${error.message}`, 'error');
+        }
     }
 
     setupDropdowns() {
