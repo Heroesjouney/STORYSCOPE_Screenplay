@@ -64,8 +64,14 @@ export default class ScreenplayFormatter {
             const currentLine = lines[currentLineIndex];
             const newCursorPosition = this.stateMachine.handleSpacebar(currentLine, cursorPosition);
             
+            // Insert space at the cursor position
+            const newContent = 
+                content.slice(0, cursorPosition) + 
+                ' ' + 
+                content.slice(cursorPosition);
+            
             return {
-                content: content,
+                content: newContent,
                 newCursorPosition: newCursorPosition
             };
         }

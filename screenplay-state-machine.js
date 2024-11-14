@@ -60,7 +60,7 @@ export default class ScreenplayStateMachine {
         };
     }
 
-    // All existing methods remain the same...
+    // Existing methods remain the same...
     detectContext(line) {
         const trimmedLine = line.trim();
         
@@ -100,6 +100,55 @@ export default class ScreenplayStateMachine {
         return context;
     }
 
+    // Enhanced spacebar handling
+    handleSpacebar(line, cursorPosition) {
+        const context = this.detectContext(line);
+        const indent = this.cursorConfig.sectionIndents[context] || 0;
+
+        // Context-specific spacebar handling
+        switch(context) {
+            case 'SCENE_HEADING':
+                // Allow spacebar after scene heading prefix
+                const hasPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
+                    line.toUpperCase().trim().startsWith(prefix.toUpperCase())
+                );
+                
+                if (hasPrefix) {
+                    // If prefix exists, allow spacebar anywhere
+                    const newPosition = cursorPosition + 1;
+                    return Math.min(newPosition, line.length);
+                }
+                break;
+
+            case 'CHARACTER_NAME':
+                // Maintain centered positioning for character names
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+
+            case 'PARENTHETICAL':
+            case 'DIALOGUE':
+                // Respect indentation for dialogue and parentheticals
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+
+            case 'TRANSITION':
+                // Prevent spaces before transitions
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+        }
+
+        // Standard cursor movement
+        const newPosition = cursorPosition + 1;
+        return Math.min(newPosition, line.length);
+    }
+
+    // Rest of the existing methods remain the same...
     formatLine(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
@@ -147,6 +196,7 @@ export default class ScreenplayStateMachine {
         }
     }
 
+    // Remaining methods stay the same...
     handleTab(reverse = false) {
         const currentSection = this.state.currentSection;
         const sectionOrder = [
@@ -216,48 +266,6 @@ export default class ScreenplayStateMachine {
                 this.state.currentSection = 'SCENE_HEADING';
                 break;
         }
-    }
-
-    // Enhanced spacebar handling
-    handleSpacebar(line, cursorPosition) {
-        const context = this.detectContext(line);
-        const indent = this.cursorConfig.sectionIndents[context] || 0;
-
-        // Context-specific spacebar handling
-        switch(context) {
-            case 'SCENE_HEADING':
-                // Prevent multiple spaces at the start of a scene heading
-                if (cursorPosition < indent) {
-                    return indent;
-                }
-                break;
-
-            case 'CHARACTER_NAME':
-                // Maintain centered positioning for character names
-                if (cursorPosition < indent) {
-                    return indent;
-                }
-                break;
-
-            case 'PARENTHETICAL':
-            case 'DIALOGUE':
-                // Respect indentation for dialogue and parentheticals
-                if (cursorPosition < indent) {
-                    return indent;
-                }
-                break;
-
-            case 'TRANSITION':
-                // Prevent spaces before transitions
-                if (cursorPosition < indent) {
-                    return indent;
-                }
-                break;
-        }
-
-        // Standard cursor movement
-        const newPosition = cursorPosition + 1;
-        return Math.min(newPosition, line.length);
     }
 
     // Existing utility methods
