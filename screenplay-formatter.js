@@ -70,9 +70,14 @@ export default class ScreenplayFormatter {
                 ' ' + 
                 content.slice(cursorPosition);
             
+            // Perform additional formatting on the line
+            const updatedLines = newContent.split('\n');
+            const updatedLine = this.stateMachine.formatLine(updatedLines[currentLineIndex]);
+            updatedLines[currentLineIndex] = updatedLine;
+            
             return {
-                content: newContent,
-                newCursorPosition: newCursorPosition
+                content: updatedLines.join('\n'),
+                newCursorPosition: newCursorPosition + 1
             };
         }
 
