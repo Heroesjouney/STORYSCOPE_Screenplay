@@ -14,6 +14,14 @@ export default class ScreenplayStateMachine {
         this.characterVariations = new Map();
         this.sceneHeadings = new Map();
 
+        // Comprehensive TIME_OF_DAY_OPTIONS
+        this.TIME_OF_DAY_OPTIONS = [
+            'DAY', 'NIGHT', 'MORNING', 
+            'AFTERNOON', 'EVENING', 
+            'DAWN', 'DUSK', 'SUNSET', 
+            'SUNRISE', 'MIDNIGHT'
+        ];
+
         // Simplified cursor tracking
         this._cursorTracking = {
             lastContext: null,
@@ -21,6 +29,14 @@ export default class ScreenplayStateMachine {
         };
 
         this.cursorConfig = {
+            sectionIndents: {
+                'SCENE_HEADING': 0,
+                'CHARACTER_NAME': 40,
+                'PARENTHETICAL': 4,
+                'DIALOGUE': 4,
+                'TRANSITION': 80,
+                'ACTION': 0
+            },
             defaultIndents: {
                 'SCENE_HEADING': 0,
                 'CHARACTER_NAME': 40,
@@ -50,79 +66,17 @@ export default class ScreenplayStateMachine {
         };
     }
 
-    // Enhanced and simplified handleSpacebar method
-    handleSpacebar(line, cursorPosition) {
-        console.log('Spacebar Handling Debug:', {
-            line: line,
-            cursorPosition: cursorPosition
-        });
-
-        const context = this.detectContext(line);
-        console.log('Current Context:', context);
-
-        // Simplified cursor positioning logic
-        let newPosition = cursorPosition + 1;
-
-        // Basic context-aware positioning
-        switch(context) {
-            case 'SCENE_HEADING':
-                // Allow spacebar anywhere in scene heading
-                newPosition = Math.min(newPosition, line.length);
-                break;
-
-            case 'CHARACTER_NAME':
-                // Maintain minimum indent for character names
-                const characterNameIndent = this.cursorConfig.defaultIndents['CHARACTER_NAME'];
-                newPosition = Math.max(newPosition, characterNameIndent);
-                break;
-
-            case 'PARENTHETICAL':
-            case 'DIALOGUE':
-                // Respect minimum indentation
-                const dialogueIndent = this.cursorConfig.defaultIndents['DIALOGUE'];
-                newPosition = Math.max(newPosition, dialogueIndent);
-                break;
-
-            case 'TRANSITION':
-                // Maintain right-aligned positioning
-                const transitionIndent = this.cursorConfig.defaultIndents['TRANSITION'];
-                newPosition = Math.max(newPosition, transitionIndent);
-                break;
-
-            default:
-                // Standard cursor movement for action lines
-                newPosition = Math.min(newPosition, line.length);
-                break;
-        }
-
-        console.log('New Cursor Position:', newPosition);
-
-        // Update last context tracking
-        this._cursorTracking.lastContext = context;
-
-        return {
-            content: line,  // Unchanged content
-            newCursorPosition: newPosition
-        };
-    }
-
-    // Rest of the methods remain the same...
+    // Unified context detection method
     detectContext(line) {
         const trimmedLine = line.trim();
         
-        // Enhanced logging for context detection
-        console.log('Context Detection Debug:', {
-            line: trimmedLine
-        });
-
         // Cached context check
         const cachedContext = this.cache.get(trimmedLine);
         if (cachedContext) {
-            console.log('Cached Context:', cachedContext);
             return cachedContext;
         }
 
-        // Scene heading detection with logging
+        // Scene heading detection
         const hasSceneHeadingPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
             trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
         );
@@ -141,14 +95,75 @@ export default class ScreenplayStateMachine {
             context = 'DIALOGUE';
         }
 
-        console.log('Detected Context:', context);
-
         // Cache the result
         this.cache.set(trimmedLine, context);
         return context;
     }
 
-    // Enhanced spacebar handling
+    // Comprehensive line formatting method
+    formatLine(line) {
+        try {
+            const trimmedLine = line.trim();
+            const context = this.detectContext(trimmedLine);
+
+            // Defensive check for TIME_OF_DAY_OPTIONS
+            if (!this.TIME_OF_DAY_OPTIONS || this.TIME_OF_DAY_OPTIONS.length === 0) {
+                console.warn('TIME_OF_DAY_OPTIONS is not defined or empty');
+                this.TIME_OF_DAY_OPTIONS = [
+                    'DAY', 'NIGHT', 'MORNING', 
+                    'AFTERNOON', 'EVENING'
+                ];
+            }
+
+            switch(context) {
+                case 'SCENE_HEADING':
+                    const matchingPrefix = this.SCENE_HEADING_PREFIXES.find(prefix => 
+                        trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
+                    );
+
+                    if (matchingPrefix) {
+                        const uppercasePrefix = matchingPrefix.toUpperCase();
+                        const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
+                        const uppercaseLocation = locationPart.toUpperCase();
+                        
+                        // Safe time of day detection
+                        const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.find(time => 
+                            uppercaseLocation.includes(time)
+                        );
+
+                        if (!timeOfDayMatch && locationPart.includes('-')) {
+                            return `${uppercasePrefix} ${uppercaseLocation}`;
+                        }
+
+                        return `${uppercasePrefix} ${uppercaseLocation}`;
+                    }
+                    return trimmedLine.toUpperCase();
+
+                case 'CHARACTER_NAME':
+                    return trimmedLine.toUpperCase().padStart(40, ' ').padEnd(80, ' ');
+
+                case 'TRANSITION':
+                    return trimmedLine.toUpperCase().padStart(80);
+
+                case 'ACTION':
+                    return trimmedLine.charAt(0).toUpperCase() + trimmedLine.slice(1);
+
+                case 'PARENTHETICAL':
+                    return trimmedLine.padStart(4);
+
+                case 'DIALOGUE':
+                    return trimmedLine.padStart(4);
+
+                default:
+                    return trimmedLine;
+            }
+        } catch (error) {
+            console.error(`Formatting error for line: ${line}`, error);
+            return line;  // Return original line if formatting fails
+        }
+    }
+
+    // Spacebar handling method
     handleSpacebar(line, cursorPosition) {
         const context = this.detectContext(line);
         const indent = this.cursorConfig.sectionIndents[context] || 0;
@@ -196,55 +211,7 @@ export default class ScreenplayStateMachine {
         return Math.min(newPosition, line.length);
     }
 
-    // Rest of the existing methods remain the same...
-    formatLine(line) {
-        const trimmedLine = line.trim();
-        const context = this.detectContext(trimmedLine);
-
-        switch(context) {
-            case 'SCENE_HEADING':
-                const matchingPrefix = this.SCENE_HEADING_PREFIXES.find(prefix => 
-                    trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
-                );
-
-                if (matchingPrefix) {
-                    const uppercasePrefix = matchingPrefix.toUpperCase();
-                    const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
-                    const uppercaseLocation = locationPart.toUpperCase();
-                    
-                    const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.find(time => 
-                        uppercaseLocation.includes(time)
-                    );
-
-                    if (!timeOfDayMatch && locationPart.includes('-')) {
-                        return `${uppercasePrefix} ${uppercaseLocation}`;
-                    }
-
-                    return `${uppercasePrefix} ${uppercaseLocation}`;
-                }
-                return trimmedLine.toUpperCase();
-
-            case 'CHARACTER_NAME':
-                return trimmedLine.toUpperCase().padStart(40, ' ').padEnd(80, ' ');
-
-            case 'TRANSITION':
-                return trimmedLine.toUpperCase().padStart(80);
-
-            case 'ACTION':
-                return trimmedLine.charAt(0).toUpperCase() + trimmedLine.slice(1);
-
-            case 'PARENTHETICAL':
-                return trimmedLine.padStart(4);
-
-            case 'DIALOGUE':
-                return trimmedLine.padStart(4);
-
-            default:
-                return trimmedLine;
-        }
-    }
-
-    // Remaining methods stay the same...
+    // Tab key handling method
     handleTab(reverse = false) {
         const currentSection = this.state.currentSection;
         const sectionOrder = [
@@ -268,6 +235,7 @@ export default class ScreenplayStateMachine {
         };
     }
 
+    // Enter key handling method
     handleEnter(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
@@ -316,11 +284,7 @@ export default class ScreenplayStateMachine {
         }
     }
 
-    // Existing utility methods
-    getContext(line) {
-        return this.detectContext(line);
-    }
-
+    // Reset method
     reset() {
         this.cache.clear();
         this.state.currentSection = 'SCENE_HEADING';
