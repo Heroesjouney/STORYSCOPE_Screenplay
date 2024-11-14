@@ -1,8 +1,10 @@
 import StateMachine from './screenplay-state-machine.js';
+import CursorManager from './cursor-manager.js';
 
 export default class ScreenplayFormatter {
     constructor(stateMachine) {
         this.stateMachine = stateMachine;
+        this.cursorManager = new CursorManager(stateMachine);
     }
 
     handleInput(content, cursorPosition) {
@@ -17,16 +19,15 @@ export default class ScreenplayFormatter {
                 if (formattedLine !== currentLine) {
                     lines[currentLineIndex] = formattedLine;
                     
-                    const previousContent = lines.slice(0, currentLineIndex).join('\n');
-                    const newCursorPosition = this.calculateNewCursorPosition(
-                        previousContent, 
+                    const cursorResult = this.cursorManager.calculateCursorPosition(
                         formattedLine, 
-                        cursorPosition
+                        cursorPosition, 
+                        'input'
                     );
                     
                     return {
                         formattedContent: lines.join('\n'),
-                        newCursorPosition
+                        newCursorPosition: cursorResult.position
                     };
                 }
             }
@@ -36,24 +37,12 @@ export default class ScreenplayFormatter {
                 newCursorPosition: cursorPosition
             };
         } catch (error) {
-            window.utils.debugLog(`Input handling error: ${error.message}`, 'error');
+            console.error(`Input handling error: ${error.message}`);
             return {
                 formattedContent: content,
                 newCursorPosition: cursorPosition
             };
         }
-    }
-
-    calculateNewCursorPosition(previousContent, formattedLine, originalCursorPosition) {
-        const context = this.stateMachine.detectContext(formattedLine);
-        const indent = this.stateMachine.cursorConfig.sectionIndents[context] || 0;
-
-        // Adjust cursor position based on context and formatting
-        if (originalCursorPosition < indent) {
-            return previousContent.length + indent + 1;
-        }
-
-        return previousContent.length + Math.min(originalCursorPosition, formattedLine.length);
     }
 
     handleSpacebar(content, cursorPosition) {
@@ -62,7 +51,11 @@ export default class ScreenplayFormatter {
         
         if (currentLineIndex !== -1) {
             const currentLine = lines[currentLineIndex];
-            const newCursorPosition = this.stateMachine.handleSpacebar(currentLine, cursorPosition);
+            const cursorResult = this.cursorManager.calculateCursorPosition(
+                currentLine, 
+                cursorPosition, 
+                'spacebar'
+            );
             
             // Insert space at the cursor position
             const newContent = 
@@ -77,7 +70,7 @@ export default class ScreenplayFormatter {
             
             return {
                 content: updatedLines.join('\n'),
-                newCursorPosition: newCursorPosition + 1
+                newCursorPosition: cursorResult.position + 1
             };
         }
 
@@ -88,11 +81,24 @@ export default class ScreenplayFormatter {
     }
 
     handleTabKey(isShiftPressed) {
-        this.stateMachine.handleTab(isShiftPressed);
+        const tabResult = this.stateMachine.handleTab(isShiftPressed);
+        this.cursorManager.trackCursorInteraction(
+            tabResult.newSection, 
+            'tab', 
+            0, 
+            this.stateMachine.cursorConfig.defaultIndents[tabResult.newSection] || 0
+        );
+        return tabResult;
     }
 
     handleEnterKey(currentLine) {
-        this.stateMachine.handleEnter(currentLine);
+        const enterResult = this.stateMachine.handleEnter(currentLine);
+        const cursorResult = this.cursorManager.calculateCursorPosition(
+            currentLine, 
+            0, 
+            'enter'
+        );
+        return enterResult;
     }
 
     formatLine(line) {
@@ -108,5 +114,10 @@ export default class ScreenplayFormatter {
             }
         }
         return lines.length - 1;
+    }
+
+    // Debugging method to get cursor interaction history
+    getCursorInteractionHistory() {
+        return this.cursorManager.getCursorInteractionHistory();
     }
 }

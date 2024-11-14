@@ -14,28 +14,20 @@ export default class ScreenplayStateMachine {
         this.characterVariations = new Map();
         this.sceneHeadings = new Map();
 
-        // Add cursor tracking and configuration
+        // Simplified cursor tracking
         this._cursorTracking = {
-            contextStability: new Map(),
-            spacebarPositions: []
+            lastContext: null,
+            lastLineType: null
         };
 
         this.cursorConfig = {
-            sectionIndents: {
+            defaultIndents: {
                 'SCENE_HEADING': 0,
                 'CHARACTER_NAME': 40,
                 'PARENTHETICAL': 4,
                 'DIALOGUE': 4,
                 'TRANSITION': 80,
                 'ACTION': 0
-            },
-            recommendedLineLength: {
-                'SCENE_HEADING': 60,
-                'CHARACTER_NAME': 80,
-                'PARENTHETICAL': 30,
-                'DIALOGUE': 40,
-                'TRANSITION': 40,
-                'ACTION': 60
             }
         };
 
@@ -52,30 +44,89 @@ export default class ScreenplayStateMachine {
             'int.', 'ext.', 'est.', 'int/ext.', 'i/e.'
         ]);
 
-        this.TIME_OF_DAY_OPTIONS = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING'];
-
         this.state = {
             currentSection: 'SCENE_HEADING',
             currentCharacter: null
         };
     }
 
-    // Existing methods remain the same...
+    // Enhanced and simplified handleSpacebar method
+    handleSpacebar(line, cursorPosition) {
+        console.log('Spacebar Handling Debug:', {
+            line: line,
+            cursorPosition: cursorPosition
+        });
+
+        const context = this.detectContext(line);
+        console.log('Current Context:', context);
+
+        // Simplified cursor positioning logic
+        let newPosition = cursorPosition + 1;
+
+        // Basic context-aware positioning
+        switch(context) {
+            case 'SCENE_HEADING':
+                // Allow spacebar anywhere in scene heading
+                newPosition = Math.min(newPosition, line.length);
+                break;
+
+            case 'CHARACTER_NAME':
+                // Maintain minimum indent for character names
+                const characterNameIndent = this.cursorConfig.defaultIndents['CHARACTER_NAME'];
+                newPosition = Math.max(newPosition, characterNameIndent);
+                break;
+
+            case 'PARENTHETICAL':
+            case 'DIALOGUE':
+                // Respect minimum indentation
+                const dialogueIndent = this.cursorConfig.defaultIndents['DIALOGUE'];
+                newPosition = Math.max(newPosition, dialogueIndent);
+                break;
+
+            case 'TRANSITION':
+                // Maintain right-aligned positioning
+                const transitionIndent = this.cursorConfig.defaultIndents['TRANSITION'];
+                newPosition = Math.max(newPosition, transitionIndent);
+                break;
+
+            default:
+                // Standard cursor movement for action lines
+                newPosition = Math.min(newPosition, line.length);
+                break;
+        }
+
+        console.log('New Cursor Position:', newPosition);
+
+        // Update last context tracking
+        this._cursorTracking.lastContext = context;
+
+        return {
+            content: line,  // Unchanged content
+            newCursorPosition: newPosition
+        };
+    }
+
+    // Rest of the methods remain the same...
     detectContext(line) {
         const trimmedLine = line.trim();
         
-        // Check cache first
+        // Enhanced logging for context detection
+        console.log('Context Detection Debug:', {
+            line: trimmedLine
+        });
+
+        // Cached context check
         const cachedContext = this.cache.get(trimmedLine);
         if (cachedContext) {
+            console.log('Cached Context:', cachedContext);
             return cachedContext;
         }
 
-        // Enhanced scene heading detection
+        // Scene heading detection with logging
         const hasSceneHeadingPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
             trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
         );
 
-        // Comprehensive context detection
         let context = 'ACTION';
         
         if (hasSceneHeadingPrefix && this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine)) {
@@ -90,10 +141,7 @@ export default class ScreenplayStateMachine {
             context = 'DIALOGUE';
         }
 
-        // Additional checks for scene heading
-        if (context === 'ACTION' && hasSceneHeadingPrefix) {
-            context = 'SCENE_HEADING';
-        }
+        console.log('Detected Context:', context);
 
         // Cache the result
         this.cache.set(trimmedLine, context);
