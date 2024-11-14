@@ -3,39 +3,74 @@ import CursorManager from './cursor-manager.js';
 
 export default class ScreenplayFormatter {
     constructor(stateMachine) {
+        // Defensive initialization
+        if (!stateMachine) {
+            console.warn('No StateMachine provided, creating default instance');
+            stateMachine = new StateMachine();
+        }
+
         this.stateMachine = stateMachine;
         this.cursorManager = new CursorManager(stateMachine);
         this.autoFormatEnabled = true;
     }
 
-    // Enhanced auto-formatting method
+    // Enhanced defensive auto-formatting method
     autoFormat(content, cursorPosition) {
         if (!this.autoFormatEnabled) return { content, cursorPosition };
 
-        const lines = content.split('\n');
-        const currentLineIndex = this.findCurrentLineIndex(lines, cursorPosition);
+        try {
+            const lines = content.split('\n');
+            const currentLineIndex = this.findCurrentLineIndex(lines, cursorPosition);
 
-        if (currentLineIndex !== -1) {
-            const currentLine = lines[currentLineIndex];
-            const formattedLine = this.stateMachine.formatLine(currentLine);
+            if (currentLineIndex !== -1) {
+                const currentLine = lines[currentLineIndex];
+                
+                // Defensive line formatting with fallback
+                const formattedLine = this.safeFormatLine(currentLine);
 
-            if (formattedLine !== currentLine) {
-                lines[currentLineIndex] = formattedLine;
+                if (formattedLine !== currentLine) {
+                    lines[currentLineIndex] = formattedLine;
 
-                const cursorResult = this.cursorManager.calculateCursorPosition(
-                    formattedLine, 
-                    cursorPosition, 
-                    'input'
-                );
+                    const cursorResult = this.cursorManager.calculateCursorPosition(
+                        formattedLine, 
+                        cursorPosition, 
+                        'input'
+                    );
 
-                return {
-                    content: lines.join('\n'),
-                    cursorPosition: cursorResult.position
-                };
+                    return {
+                        content: lines.join('\n'),
+                        cursorPosition: cursorResult.position
+                    };
+                }
             }
-        }
 
-        return { content, cursorPosition };
+            return { content, cursorPosition };
+        } catch (error) {
+            console.error('Auto-formatting error:', error);
+            return { content, cursorPosition };
+        }
+    }
+
+    // Safe line formatting with fallback
+    safeFormatLine(line) {
+        try {
+            // Ensure stateMachine and formatLine method exist
+            if (!this.stateMachine || typeof this.stateMachine.formatLine !== 'function') {
+                console.warn('StateMachine or formatLine method is undefined');
+                return this.defaultFormatLine(line);
+            }
+
+            return this.stateMachine.formatLine(line);
+        } catch (error) {
+            console.error('Line formatting error:', error);
+            return this.defaultFormatLine(line);
+        }
+    }
+
+    // Default formatting fallback
+    defaultFormatLine(line) {
+        // Basic formatting fallback
+        return line.charAt(0).toUpperCase() + line.slice(1).trim();
     }
 
     handleInput(content, cursorPosition) {
@@ -73,7 +108,7 @@ export default class ScreenplayFormatter {
             
             // Perform additional formatting on the line
             const updatedLines = newContent.split('\n');
-            const updatedLine = this.stateMachine.formatLine(updatedLines[currentLineIndex]);
+            const updatedLine = this.safeFormatLine(updatedLines[currentLineIndex]);
             updatedLines[currentLineIndex] = updatedLine;
             
             // Auto-format the entire content
@@ -93,29 +128,41 @@ export default class ScreenplayFormatter {
     }
 
     handleTabKey(isShiftPressed) {
-        const tabResult = this.stateMachine.handleTab(isShiftPressed);
-        this.cursorManager.trackCursorInteraction(
-            tabResult.newSection, 
-            'tab', 
-            0, 
-            this.stateMachine.cursorConfig.defaultIndents[tabResult.newSection] || 0
-        );
-        return tabResult;
+        try {
+            const tabResult = this.stateMachine.handleTab(isShiftPressed);
+            this.cursorManager.trackCursorInteraction(
+                tabResult.newSection, 
+                'tab', 
+                0, 
+                this.stateMachine.cursorConfig.defaultIndents[tabResult.newSection] || 0
+            );
+            return tabResult;
+        } catch (error) {
+            console.error('Tab key handling error:', error);
+            return { 
+                newSection: 'SCENE_HEADING', 
+                recommendedLineLength: 60 
+            };
+        }
     }
 
     handleEnterKey(currentLine) {
-        const enterResult = this.stateMachine.handleEnter(currentLine);
-        const cursorResult = this.cursorManager.calculateCursorPosition(
-            currentLine, 
-            0, 
-            'enter'
-        );
-        return enterResult;
+        try {
+            const enterResult = this.stateMachine.handleEnter(currentLine);
+            const cursorResult = this.cursorManager.calculateCursorPosition(
+                currentLine, 
+                0, 
+                'enter'
+            );
+            return enterResult;
+        } catch (error) {
+            console.error('Enter key handling error:', error);
+            return { currentSection: 'SCENE_HEADING' };
+        }
     }
 
-    // Comprehensive line formatting method
     formatLine(line) {
-        return this.stateMachine.formatLine(line);
+        return this.safeFormatLine(line);
     }
 
     findCurrentLineIndex(lines, cursorPosition) {
@@ -129,12 +176,10 @@ export default class ScreenplayFormatter {
         return lines.length - 1;
     }
 
-    // Toggle auto-formatting
     setAutoFormatting(enabled) {
         this.autoFormatEnabled = enabled;
     }
 
-    // Debugging method to get cursor interaction history
     getCursorInteractionHistory() {
         return this.cursorManager.getCursorInteractionHistory();
     }
