@@ -29,6 +29,7 @@ export default class ScreenplayStateMachine {
 
         this.TIME_OF_DAY_OPTIONS = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING'];
 
+        // Preserve transition rules and valid transitions
         this.state = {
             currentSection: 'SCENE_HEADING',
             currentCharacter: null,
@@ -82,15 +83,17 @@ export default class ScreenplayStateMachine {
             }
         };
 
-        // Ensure all methods are bound to the instance
-        this.get = this.get.bind(this);
+        // Cursor tracking properties
+        this.cursorTracking = {
+            lastContext: null,
+            lastLineLength: 0,
+            lastCursorPosition: 0,
+            contextStability: new Map(),
+            positionHistory: []
+        };
     }
 
-    // Utility method to safely retrieve cached values
-    get(key) {
-        return this.cache.get(key);
-    }
-
+    // Existing methods remain the same...
     formatLine(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
@@ -176,11 +179,12 @@ export default class ScreenplayStateMachine {
         return false;
     }
 
+    // Rest of the methods remain the same...
     handleEnter(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
 
-        // Use new state transition method
+        // Use state transition method
         const transitionSuccessful = this.transitionState(context, trimmedLine);
 
         if (!transitionSuccessful) {
