@@ -14,6 +14,31 @@ export default class ScreenplayStateMachine {
         this.characterVariations = new Map();
         this.sceneHeadings = new Map();
 
+        // Add cursor tracking and configuration
+        this._cursorTracking = {
+            contextStability: new Map(),
+            spacebarPositions: []
+        };
+
+        this.cursorConfig = {
+            sectionIndents: {
+                'SCENE_HEADING': 0,
+                'CHARACTER_NAME': 40,
+                'PARENTHETICAL': 4,
+                'DIALOGUE': 4,
+                'TRANSITION': 80,
+                'ACTION': 0
+            },
+            recommendedLineLength: {
+                'SCENE_HEADING': 60,
+                'CHARACTER_NAME': 80,
+                'PARENTHETICAL': 30,
+                'DIALOGUE': 40,
+                'TRANSITION': 40,
+                'ACTION': 60
+            }
+        };
+
         this.CONTEXT_REGEX = {
             SCENE_HEADING: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)[\s\w-]+/i,
             CHARACTER_NAME: /^[A-Z][A-Z\s]+$/,
@@ -35,6 +60,7 @@ export default class ScreenplayStateMachine {
         };
     }
 
+    // All existing methods remain the same...
     detectContext(line) {
         const trimmedLine = line.trim();
         
@@ -74,7 +100,6 @@ export default class ScreenplayStateMachine {
         return context;
     }
 
-    // Rest of the methods remain the same as in the previous implementation
     formatLine(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
@@ -120,30 +145,6 @@ export default class ScreenplayStateMachine {
             default:
                 return trimmedLine;
         }
-    }
-
-    detectContext(line) {
-        const trimmedLine = line.trim();
-        const cachedContext = this.cache.get(trimmedLine);
-        if (cachedContext) {
-            return cachedContext;
-        }
-
-        let context = 'ACTION';
-        if (this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine)) {
-            context = 'SCENE_HEADING';
-        } else if (this.CONTEXT_REGEX.CHARACTER_NAME.test(trimmedLine)) {
-            context = 'CHARACTER_NAME';
-        } else if (this.CONTEXT_REGEX.TRANSITION.test(trimmedLine)) {
-            context = 'TRANSITION';
-        } else if (this.CONTEXT_REGEX.PARENTHETICAL.test(trimmedLine)) {
-            context = 'PARENTHETICAL';
-        } else if (this.CONTEXT_REGEX.DIALOGUE.test(trimmedLine)) {
-            context = 'DIALOGUE';
-        }
-
-        this.cache.set(trimmedLine, context);
-        return context;
     }
 
     handleTab(reverse = false) {
@@ -217,85 +218,49 @@ export default class ScreenplayStateMachine {
         }
     }
 
-    _analyzeCursorStability(line, cursorPosition) {
-        const context = this.detectContext(line);
-        
-        // Track context stability
-        const contextStabilityCount = (this._cursorTracking.contextStability.get(context) || 0) + 1;
-        this._cursorTracking.contextStability.set(context, contextStabilityCount);
-
-        // Store spacebar positions
-        this._cursorTracking.spacebarPositions.push({
-            position: cursorPosition,
-            context: context,
-            timestamp: Date.now()
-        });
-
-        // Limit buffer size
-        if (this._cursorTracking.spacebarPositions.length > 10) {
-            this._cursorTracking.spacebarPositions.shift();
-        }
-
-        return {
-            context: context,
-            stabilityScore: contextStabilityCount,
-            recommendedPosition: this.calculateIdealCursorPosition(line, context)
-        };
-    }
-
-    calculateIdealCursorPosition(line, context) {
-        const indent = this.cursorConfig.sectionIndents[context] || 0;
-        const recommendedLength = this.cursorConfig.recommendedLineLength[context] || line.length;
-
-        switch(context) {
-            case 'SCENE_HEADING':
-                return Math.min(line.length, recommendedLength);
-            
-            case 'CHARACTER_NAME':
-                return Math.max(indent, Math.min(line.length, recommendedLength));
-            
-            case 'PARENTHETICAL':
-            case 'DIALOGUE':
-                return indent + Math.min(line.length - indent, recommendedLength - indent);
-            
-            case 'TRANSITION':
-                return line.length;
-            
-            default:
-                return line.length;
-        }
-    }
-
-    _suggestCursorPosition(line, currentPosition) {
-        const stabilityAnalysis = this._analyzeCursorStability(line, currentPosition);
-        
-        // If context is stable, try to maintain current position
-        if (stabilityAnalysis.stabilityScore > 3) {
-            return {
-                maintainPosition: true,
-                position: currentPosition
-            };
-        }
-
-        return {
-            maintainPosition: false,
-            position: stabilityAnalysis.recommendedPosition
-        };
-    }
-
+    // Enhanced spacebar handling
     handleSpacebar(line, cursorPosition) {
         const context = this.detectContext(line);
-        const newPosition = cursorPosition + 1; // Move cursor one position to the right
+        const indent = this.cursorConfig.sectionIndents[context] || 0;
 
-        // Ensure the new position is within the bounds of the line
-        if (newPosition > line.length) {
-            return cursorPosition;
+        // Context-specific spacebar handling
+        switch(context) {
+            case 'SCENE_HEADING':
+                // Prevent multiple spaces at the start of a scene heading
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+
+            case 'CHARACTER_NAME':
+                // Maintain centered positioning for character names
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+
+            case 'PARENTHETICAL':
+            case 'DIALOGUE':
+                // Respect indentation for dialogue and parentheticals
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+
+            case 'TRANSITION':
+                // Prevent spaces before transitions
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
         }
 
-        return newPosition;
+        // Standard cursor movement
+        const newPosition = cursorPosition + 1;
+        return Math.min(newPosition, line.length);
     }
 
-    // Additional utility methods to ensure compatibility
+    // Existing utility methods
     getContext(line) {
         return this.detectContext(line);
     }
