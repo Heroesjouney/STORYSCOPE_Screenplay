@@ -33,53 +33,48 @@ export default class ScreenplayStateMachine {
             currentSection: 'SCENE_HEADING',
             currentCharacter: null
         };
-
-        // Cursor configuration
-        this.cursorConfig = {
-            sectionIndents: {
-                'SCENE_HEADING': 0,
-                'ACTION': 0,
-                'CHARACTER_NAME': 40,
-                'PARENTHETICAL': 4,
-                'DIALOGUE': 4,
-                'TRANSITION': 70
-            },
-            recommendedLineLength: {
-                'SCENE_HEADING': 60,
-                'ACTION': 60,
-                'CHARACTER_NAME': 80,
-                'PARENTHETICAL': 40,
-                'DIALOGUE': 50,
-                'TRANSITION': 20
-            }
-        };
-
-        // Cursor tracking properties
-        this._cursorTracking = {
-            lastContext: null,
-            lastLineLength: 0,
-            spacebarPositions: [],
-            contextStability: new Map()
-        };
-
-        // Enhanced error handling and method compatibility
-        this._ensureMethodCompatibility();
     }
 
-    // Method to ensure all expected methods are available
-    _ensureMethodCompatibility() {
-        // Bind methods to ensure they can be called from different contexts
-        this.formatLine = this.formatLine.bind(this);
-        this.detectContext = this.detectContext.bind(this);
-        this.handleTab = this.handleTab.bind(this);
-        this.handleEnter = this.handleEnter.bind(this);
-
-        // Add fallback methods to prevent undefined errors
-        if (!this.get) {
-            this.get = (key) => this.cache.get(key);
+    detectContext(line) {
+        const trimmedLine = line.trim();
+        
+        // Check cache first
+        const cachedContext = this.cache.get(trimmedLine);
+        if (cachedContext) {
+            return cachedContext;
         }
+
+        // Enhanced scene heading detection
+        const hasSceneHeadingPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
+            trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
+        );
+
+        // Comprehensive context detection
+        let context = 'ACTION';
+        
+        if (hasSceneHeadingPrefix && this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine)) {
+            context = 'SCENE_HEADING';
+        } else if (this.CONTEXT_REGEX.CHARACTER_NAME.test(trimmedLine)) {
+            context = 'CHARACTER_NAME';
+        } else if (this.CONTEXT_REGEX.TRANSITION.test(trimmedLine)) {
+            context = 'TRANSITION';
+        } else if (this.CONTEXT_REGEX.PARENTHETICAL.test(trimmedLine)) {
+            context = 'PARENTHETICAL';
+        } else if (this.CONTEXT_REGEX.DIALOGUE.test(trimmedLine)) {
+            context = 'DIALOGUE';
+        }
+
+        // Additional checks for scene heading
+        if (context === 'ACTION' && hasSceneHeadingPrefix) {
+            context = 'SCENE_HEADING';
+        }
+
+        // Cache the result
+        this.cache.set(trimmedLine, context);
+        return context;
     }
 
+    // Rest of the methods remain the same as in the previous implementation
     formatLine(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
