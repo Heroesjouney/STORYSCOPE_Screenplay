@@ -69,10 +69,15 @@ export default class ScreenplayEditor {
             this.checkForTimeDropdown();
         });
 
+        // Add specific spacebar handling
         this.editorElement.addEventListener('keydown', (event) => {
             if (!this.updatesEnabled) return;
             
             switch(event.key) {
+                case ' ': // Spacebar
+                    event.preventDefault();
+                    this.handleSpacebar(event);
+                    break;
                 case 'Tab':
                     event.preventDefault();
                     this.handleTabKey(event);
@@ -96,6 +101,22 @@ export default class ScreenplayEditor {
         });
     }
 
+    // New method to handle spacebar
+    handleSpacebar(event) {
+        const content = this.editorElement.value;
+        const cursorPosition = this.editorElement.selectionStart;
+        
+        const spacebarResult = this.formatter.handleSpacebar(content, cursorPosition);
+        
+        // Update editor content and cursor position
+        this.editorElement.value = spacebarResult.content;
+        this.editorElement.setSelectionRange(spacebarResult.newCursorPosition, spacebarResult.newCursorPosition);
+
+        // Trigger input handling to ensure formatting
+        this.handleInput(event);
+    }
+
+    // Existing methods from previous implementation...
     setupDropdowns() {
         if (this.timeDropdown) {
             const timeDropdownContent = this.timeDropdown.querySelector('.dropdown-content');
@@ -117,6 +138,7 @@ export default class ScreenplayEditor {
         }
     }
 
+    // Rest of the methods remain the same as in the previous implementation...
     checkForTimeDropdown() {
         try {
             const content = this.editorElement.value;
@@ -209,7 +231,6 @@ export default class ScreenplayEditor {
         }
     }
 
-    // Remaining methods
     handleInput(event) {
         try {
             const content = this.editorElement.value;
