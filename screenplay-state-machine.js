@@ -23,7 +23,8 @@ export default class ScreenplayStateMachine {
 
         this._cursorTracking = {
             lastContext: null,
-            lastLineType: null
+            lastLineType: null,
+            movementHistory: []
         };
 
         this.cursorConfig = {
@@ -42,7 +43,8 @@ export default class ScreenplayStateMachine {
                 'DIALOGUE': 4,
                 'TRANSITION': 80,
                 'ACTION': 0
-            }
+            },
+            maxLineLength: 80
         };
 
         this.CONTEXT_REGEX = {
@@ -64,27 +66,43 @@ export default class ScreenplayStateMachine {
         };
     }
 
-    // Enhanced context detection method
+    // Enhanced Cursor Tracking Method
+    _trackCursorMovement(context, action, oldPosition, newPosition) {
+        const movement = {
+            timestamp: new Date(),
+            context,
+            action,
+            oldPosition,
+            newPosition,
+            delta: newPosition - oldPosition
+        };
+
+        this._cursorTracking.movementHistory.push(movement);
+        
+        // Limit history to last 50 movements
+        if (this._cursorTracking.movementHistory.length > 50) {
+            this._cursorTracking.movementHistory.shift();
+        }
+
+        console.log('Cursor Movement Tracking:', movement);
+    }
+
+    // Comprehensive Context Detection
     detectContext(line) {
         const trimmedLine = line.trim();
         
-        // Early return for empty lines
         if (!trimmedLine) return 'ACTION';
 
-        // Cached context check
         const cachedContext = this.cache.get(trimmedLine);
         if (cachedContext) return cachedContext;
 
-        // Comprehensive scene heading detection
         const hasSceneHeadingPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
             trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
         );
 
-        // Detailed context detection with enhanced logging
         let context = 'ACTION';
         
         if (hasSceneHeadingPrefix) {
-            // More lenient scene heading detection
             if (this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine) || 
                 trimmedLine.split(/\s+/).length > 1) {
                 context = 'SCENE_HEADING';
@@ -99,70 +117,76 @@ export default class ScreenplayStateMachine {
             context = 'DIALOGUE';
         }
 
-        // Verbose logging for debugging
-        console.log('Context Detection Debug:', {
-            line: trimmedLine,
-            detectedContext: context,
-            hasPrefix: hasSceneHeadingPrefix
-        });
-
-        // Cache the result
         this.cache.set(trimmedLine, context);
         return context;
     }
 
-    // Refined cursor positioning method
+    // Advanced Spacebar Handling
     handleSpacebar(line, cursorPosition) {
         const context = this.detectContext(line);
         const indent = this.cursorConfig.sectionIndents[context] || 0;
 
-        console.log('Spacebar Handling Debug:', {
+        console.log('Spacebar Debug:', {
             line,
             cursorPosition,
             context,
             indent
         });
 
-        // Context-specific spacebar handling
+        let newPosition = cursorPosition;
+
         switch(context) {
             case 'SCENE_HEADING':
-                // More flexible spacebar handling for scene headings
                 const hasPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
                     line.toUpperCase().trim().startsWith(prefix.toUpperCase())
                 );
                 
                 if (hasPrefix) {
-                    // Allow spacebar with more intelligent positioning
-                    const newPosition = Math.min(cursorPosition + 1, line.length);
-                    return {
-                        content: line,
-                        newCursorPosition: newPosition
-                    };
+                    // More intelligent scene heading space insertion
+                    newPosition = Math.min(cursorPosition + 1, line.length);
+                } else {
+                    // Prevent excessive spaces in scene headings
+                    newPosition = Math.max(cursorPosition, indent);
                 }
                 break;
 
             case 'CHARACTER_NAME':
+                // Enforce centered positioning
+                newPosition = Math.max(cursorPosition, indent);
+                break;
+
             case 'PARENTHETICAL':
             case 'DIALOGUE':
+                // Respect dialogue indentation
+                newPosition = Math.max(cursorPosition, indent);
+                break;
+
             case 'TRANSITION':
-                // Respect minimum indentation
-                if (cursorPosition < indent) {
-                    return {
-                        content: line,
-                        newCursorPosition: indent
-                    };
-                }
+                // Maintain right-aligned positioning
+                newPosition = Math.max(cursorPosition, indent);
+                break;
+
+            default:
+                // Standard cursor movement with length check
+                newPosition = Math.min(cursorPosition + 1, line.length);
                 break;
         }
 
-        // Standard cursor movement
-        const newPosition = Math.min(cursorPosition + 1, line.length);
+        // Track cursor movement
+        this._trackCursorMovement(context, 'spacebar', cursorPosition, newPosition);
+
         return {
             content: line,
             newCursorPosition: newPosition
         };
     }
 
+    // Diagnostic Cursor Movement History
+    getCursorMovementHistory() {
+        return this._cursorTracking.movementHistory;
+    }
+
+    // Rest of the methods remain the same...
     formatLine(line) {
         try {
             const trimmedLine = line.trim();
@@ -215,7 +239,7 @@ export default class ScreenplayStateMachine {
         }
     }
 
-    // Tab key handling method
+    // Existing methods for tab, enter, and reset remain the same
     handleTab(reverse = false) {
         const currentSection = this.state.currentSection;
         const sectionOrder = [
@@ -239,7 +263,6 @@ export default class ScreenplayStateMachine {
         };
     }
 
-    // Enter key handling method
     handleEnter(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
@@ -288,10 +311,10 @@ export default class ScreenplayStateMachine {
         }
     }
 
-    // Reset method
     reset() {
         this.cache.clear();
         this.state.currentSection = 'SCENE_HEADING';
         this.state.currentCharacter = null;
+        this._cursorTracking.movementHistory = [];
     }
 }
