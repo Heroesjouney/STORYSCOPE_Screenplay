@@ -29,71 +29,29 @@ export default class ScreenplayStateMachine {
 
         this.TIME_OF_DAY_OPTIONS = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING'];
 
-        // Preserve transition rules and valid transitions
         this.state = {
             currentSection: 'SCENE_HEADING',
-            currentCharacter: null,
-            transitionRules: {
-                'SCENE_HEADING': ['ACTION'],
-                'ACTION': ['CHARACTER_NAME', 'SCENE_HEADING'],
-                'CHARACTER_NAME': ['PARENTHETICAL', 'SCENE_HEADING'],
-                'PARENTHETICAL': ['DIALOGUE'],
-                'DIALOGUE': ['SCENE_HEADING', 'CHARACTER_NAME']
-            },
-            validTransitions: {
-                'SCENE_HEADING': {
-                    allowedContexts: ['SCENE_HEADING', 'ACTION'],
-                    nextSection: 'ACTION'
-                },
-                'ACTION': {
-                    allowedContexts: ['CHARACTER_NAME', 'SCENE_HEADING'],
-                    nextSection: 'CHARACTER_NAME'
-                },
-                'CHARACTER_NAME': {
-                    allowedContexts: ['PARENTHETICAL', 'SCENE_HEADING'],
-                    nextSection: 'PARENTHETICAL'
-                },
-                'PARENTHETICAL': {
-                    allowedContexts: ['DIALOGUE'],
-                    nextSection: 'DIALOGUE'
-                },
-                'DIALOGUE': {
-                    allowedContexts: ['SCENE_HEADING', 'CHARACTER_NAME'],
-                    nextSection: 'SCENE_HEADING'
-                }
-            }
+            currentCharacter: null
         };
 
-        this.cursorConfig = {
-            sectionIndents: {
-                'SCENE_HEADING': 0,
-                'ACTION': 0,
-                'CHARACTER_NAME': 40,
-                'PARENTHETICAL': 4,
-                'DIALOGUE': 4,
-                'TRANSITION': 70
-            },
-            recommendedLineLength: {
-                'SCENE_HEADING': 60,
-                'ACTION': 60,
-                'CHARACTER_NAME': 80,
-                'PARENTHETICAL': 40,
-                'DIALOGUE': 50,
-                'TRANSITION': 20
-            }
-        };
-
-        // Cursor tracking properties
-        this.cursorTracking = {
-            lastContext: null,
-            lastLineLength: 0,
-            lastCursorPosition: 0,
-            contextStability: new Map(),
-            positionHistory: []
-        };
+        // Enhanced error handling and method compatibility
+        this._ensureMethodCompatibility();
     }
 
-    // Existing methods remain the same...
+    // Method to ensure all expected methods are available
+    _ensureMethodCompatibility() {
+        // Bind methods to ensure they can be called from different contexts
+        this.formatLine = this.formatLine.bind(this);
+        this.detectContext = this.detectContext.bind(this);
+        this.handleTab = this.handleTab.bind(this);
+        this.handleEnter = this.handleEnter.bind(this);
+
+        // Add fallback methods to prevent undefined errors
+        if (!this.get) {
+            this.get = (key) => this.cache.get(key);
+        }
+    }
+
     formatLine(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
@@ -165,39 +123,6 @@ export default class ScreenplayStateMachine {
         return context;
     }
 
-    // Enhanced state transition method
-    transitionState(context, line) {
-        const currentSection = this.state.currentSection;
-        const validTransition = this.state.validTransitions[currentSection];
-
-        // Check if context is allowed for current section
-        if (validTransition.allowedContexts.includes(context)) {
-            this.state.currentSection = validTransition.nextSection;
-            return true;
-        }
-
-        return false;
-    }
-
-    // Rest of the methods remain the same...
-    handleEnter(line) {
-        const trimmedLine = line.trim();
-        const context = this.detectContext(trimmedLine);
-
-        // Use state transition method
-        const transitionSuccessful = this.transitionState(context, trimmedLine);
-
-        if (!transitionSuccessful) {
-            // Fallback to default state if transition fails
-            this.state.currentSection = 'SCENE_HEADING';
-        }
-
-        // Optional: track character for character-related sections
-        if (context === 'CHARACTER_NAME') {
-            this.state.currentCharacter = trimmedLine;
-        }
-    }
-
     handleTab(reverse = false) {
         const currentSection = this.state.currentSection;
         const sectionOrder = [
@@ -217,93 +142,66 @@ export default class ScreenplayStateMachine {
 
         return {
             newSection: this.state.currentSection,
-            recommendedLineLength: this.cursorConfig.recommendedLineLength[this.state.currentSection] || 60
+            recommendedLineLength: 60
         };
     }
 
-    // Existing tracking methods remain the same...
-    updateCharacterAndSceneTracking(lines) {
-        lines.forEach(line => {
-            const context = this.detectContext(line.trim());
-            if (context === 'CHARACTER_NAME') {
-                this.trackCharacter(line.trim());
-            }
-            if (context === 'SCENE_HEADING') {
-                this.trackScene(line.trim());
-            }
-        });
-    }
+    handleEnter(line) {
+        const trimmedLine = line.trim();
+        const context = this.detectContext(trimmedLine);
 
-    trackCharacter(characterName) {
-        const normalizedName = characterName.toUpperCase().trim();
-        const currentCount = this.characters.get(normalizedName) || 0;
-        this.characters.set(normalizedName, currentCount + 1);
+        switch (this.state.currentSection) {
+            case 'SCENE_HEADING':
+                if (context === 'SCENE_HEADING') {
+                    this.state.currentSection = 'ACTION';
+                } else {
+                    this.state.currentSection = 'SCENE_HEADING';
+                }
+                break;
 
-        const nameParts = normalizedName.split(' ');
-        nameParts.forEach(part => {
-            const variations = this.characterVariations.get(part) || new Set();
-            variations.add(normalizedName);
-            this.characterVariations.set(part, variations);
-        });
+            case 'ACTION':
+                if (context === 'CHARACTER_NAME') {
+                    this.state.currentSection = 'CHARACTER_NAME';
+                    this.state.currentCharacter = trimmedLine;
+                } else {
+                    this.state.currentSection = 'SCENE_HEADING';
+                }
+                break;
 
-        this._trimTrackedItems(this.characters, this.config.maxCharacterNames);
-    }
+            case 'CHARACTER_NAME':
+                if (trimmedLine) {
+                    this.state.currentSection = 'PARENTHETICAL';
+                } else {
+                    this.state.currentSection = 'SCENE_HEADING';
+                }
+                break;
 
-    trackScene(location) {
-        const normalizedLocation = location.toUpperCase().trim();
-        const currentCount = this.scenes.get(normalizedLocation) || 0;
-        this.scenes.set(normalizedLocation, currentCount + 1);
+            case 'PARENTHETICAL':
+                this.state.currentSection = 'DIALOGUE';
+                break;
 
-        const headingCount = (this.sceneHeadings.get(normalizedLocation) || 0) + 1;
-        this.sceneHeadings.set(normalizedLocation, headingCount);
+            case 'DIALOGUE':
+                if (trimmedLine) {
+                    this.state.currentSection = 'DIALOGUE';
+                } else {
+                    this.state.currentSection = 'SCENE_HEADING';
+                }
+                break;
 
-        this._trimTrackedItems(this.scenes, this.config.maxSceneLocations);
-        this._trimTrackedItems(this.sceneHeadings, this.config.maxFrequentHeadings);
-    }
-
-    _trimTrackedItems(map, maxSize) {
-        if (map.size > maxSize) {
-            const sortedEntries = Array.from(map.entries())
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, maxSize);
-            map.clear();
-            sortedEntries.forEach(([key, value]) => map.set(key, value));
+            default:
+                this.state.currentSection = 'SCENE_HEADING';
+                break;
         }
     }
 
-    // Existing suggestion methods remain the same...
-    getCharacterSuggestions(partialName) {
-        const normalizedPartial = partialName.toUpperCase().trim();
-        const directMatches = Array.from(this.characters.keys())
-            .filter(name => name.includes(normalizedPartial))
-            .slice(0, 5);
-
-        const variationMatches = Array.from(this.characterVariations.entries())
-            .filter(([part]) => part.includes(normalizedPartial))
-            .flatMap(([, names]) => Array.from(names))
-            .slice(0, 5);
-
-        return [...new Set([...directMatches, ...variationMatches])];
-    }
-
-    getFrequentSceneHeadingSuggestions(partialHeading) {
-        return Array.from(this.sceneHeadings.keys())
-            .filter(heading => heading.toLowerCase().includes(partialHeading.toLowerCase()))
-            .slice(0, 5);
+    // Additional utility methods to ensure compatibility
+    getContext(line) {
+        return this.detectContext(line);
     }
 
     reset() {
         this.cache.clear();
-        this.characters.clear();
-        this.scenes.clear();
-        this.characterVariations.clear();
-        this.sceneHeadings.clear();
-        
-        this.state = {
-            currentSection: 'SCENE_HEADING',
-            currentCharacter: null,
-            transitionRules: this.state.transitionRules,
-            validTransitions: this.state.validTransitions
-        };
+        this.state.currentSection = 'SCENE_HEADING';
+        this.state.currentCharacter = null;
     }
 }
