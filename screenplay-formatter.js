@@ -46,8 +46,13 @@ export default class ScreenplayFormatter {
 
     calculateNewCursorPosition(previousContent, formattedLine, originalCursorPosition) {
         const context = this.stateMachine.detectContext(formattedLine);
-        
-        // Maintain original cursor positioning logic
+        const indent = this.stateMachine.cursorConfig.sectionIndents[context] || 0;
+
+        // Adjust cursor position based on context and formatting
+        if (originalCursorPosition < indent) {
+            return previousContent.length + indent + 1;
+        }
+
         return previousContent.length + Math.min(originalCursorPosition, formattedLine.length);
     }
 
@@ -57,6 +62,7 @@ export default class ScreenplayFormatter {
         
         if (currentLineIndex !== -1) {
             const currentLine = lines[currentLineIndex];
+            const newCursorPosition = this.stateMachine.handleSpacebar(currentLine, cursorPosition);
             
             // Insert space at the cursor position
             const newContent = 
@@ -64,14 +70,14 @@ export default class ScreenplayFormatter {
                 ' ' + 
                 content.slice(cursorPosition);
             
-            // Perform formatting on the entire content
-            const formattedLines = newContent.split('\n').map(line => 
-                this.stateMachine.formatLine(line)
-            );
+            // Perform additional formatting on the line
+            const updatedLines = newContent.split('\n');
+            const updatedLine = this.stateMachine.formatLine(updatedLines[currentLineIndex]);
+            updatedLines[currentLineIndex] = updatedLine;
             
             return {
-                content: formattedLines.join('\n'),
-                newCursorPosition: cursorPosition + 1
+                content: updatedLines.join('\n'),
+                newCursorPosition: newCursorPosition + 1
             };
         }
 

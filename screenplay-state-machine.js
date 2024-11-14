@@ -14,6 +14,31 @@ export default class ScreenplayStateMachine {
         this.characterVariations = new Map();
         this.sceneHeadings = new Map();
 
+        // Add cursor tracking and configuration
+        this._cursorTracking = {
+            contextStability: new Map(),
+            spacebarPositions: []
+        };
+
+        this.cursorConfig = {
+            sectionIndents: {
+                'SCENE_HEADING': 0,
+                'CHARACTER_NAME': 40,
+                'PARENTHETICAL': 4,
+                'DIALOGUE': 4,
+                'TRANSITION': 80,
+                'ACTION': 0
+            },
+            recommendedLineLength: {
+                'SCENE_HEADING': 60,
+                'CHARACTER_NAME': 80,
+                'PARENTHETICAL': 30,
+                'DIALOGUE': 40,
+                'TRANSITION': 40,
+                'ACTION': 60
+            }
+        };
+
         this.CONTEXT_REGEX = {
             SCENE_HEADING: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)[\s\w-]+/i,
             CHARACTER_NAME: /^[A-Z][A-Z\s]+$/,
@@ -35,6 +60,7 @@ export default class ScreenplayStateMachine {
         };
     }
 
+    // Existing methods remain the same...
     detectContext(line) {
         const trimmedLine = line.trim();
         
@@ -74,6 +100,55 @@ export default class ScreenplayStateMachine {
         return context;
     }
 
+    // Enhanced spacebar handling
+    handleSpacebar(line, cursorPosition) {
+        const context = this.detectContext(line);
+        const indent = this.cursorConfig.sectionIndents[context] || 0;
+
+        // Context-specific spacebar handling
+        switch(context) {
+            case 'SCENE_HEADING':
+                // Allow spacebar after scene heading prefix
+                const hasPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
+                    line.toUpperCase().trim().startsWith(prefix.toUpperCase())
+                );
+                
+                if (hasPrefix) {
+                    // If prefix exists, allow spacebar anywhere
+                    const newPosition = cursorPosition + 1;
+                    return Math.min(newPosition, line.length);
+                }
+                break;
+
+            case 'CHARACTER_NAME':
+                // Maintain centered positioning for character names
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+
+            case 'PARENTHETICAL':
+            case 'DIALOGUE':
+                // Respect indentation for dialogue and parentheticals
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+
+            case 'TRANSITION':
+                // Prevent spaces before transitions
+                if (cursorPosition < indent) {
+                    return indent;
+                }
+                break;
+        }
+
+        // Standard cursor movement
+        const newPosition = cursorPosition + 1;
+        return Math.min(newPosition, line.length);
+    }
+
+    // Rest of the existing methods remain the same...
     formatLine(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
@@ -93,7 +168,6 @@ export default class ScreenplayStateMachine {
                         uppercaseLocation.includes(time)
                     );
 
-                    // Preserve original formatting logic
                     if (!timeOfDayMatch && locationPart.includes('-')) {
                         return `${uppercasePrefix} ${uppercaseLocation}`;
                     }
@@ -103,37 +177,23 @@ export default class ScreenplayStateMachine {
                 return trimmedLine.toUpperCase();
 
             case 'CHARACTER_NAME':
-                // Ensure consistent character name formatting
                 return trimmedLine.toUpperCase().padStart(40, ' ').padEnd(80, ' ');
 
             case 'TRANSITION':
-                // Maintain transition formatting
                 return trimmedLine.toUpperCase().padStart(80);
 
             case 'ACTION':
-                // Preserve action line capitalization
                 return trimmedLine.charAt(0).toUpperCase() + trimmedLine.slice(1);
 
             case 'PARENTHETICAL':
-                // Maintain parenthetical indentation
                 return trimmedLine.padStart(4);
 
             case 'DIALOGUE':
-                // Maintain dialogue indentation
                 return trimmedLine.padStart(4);
 
             default:
                 return trimmedLine;
         }
-    }
-
-    // Spacebar handling method
-    handleSpacebar(line, cursorPosition) {
-        const context = this.detectContext(line);
-
-        // Standard cursor movement
-        const newPosition = cursorPosition + 1;
-        return Math.min(newPosition, line.length);
     }
 
     // Remaining methods stay the same...
