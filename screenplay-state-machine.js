@@ -1,99 +1,97 @@
 export default class ScreenplayStateMachine {
     constructor(options = {}) {
-        // Existing constructor code remains the same
-        
-        // Enhanced spacebar tracking
-        this._spacebarState = {
-            lastSpacePosition: 0,
-            spaceCount: 0,
-            lastSpaceTimestamp: 0,
-            spaceThreshold: 300, // milliseconds between spaces
-            lineContext: null
+        this.config = {
+            maxCacheSize: options.maxCacheSize || 1000,
+            maxFrequentHeadings: options.maxFrequentHeadings || 10,
+            maxCharacterNames: options.maxCharacterNames || 50,
+            maxSceneLocations: options.maxSceneLocations || 50,
+            cacheEvictionStrategy: options.cacheEvictionStrategy || 'lru'
         };
-    }
 
-    // Existing methods remain the same...
+        this.cache = new Map();
+        this.characters = new Map();
+        this.scenes = new Map();
+        this.characterVariations = new Map();
+        this.sceneHeadings = new Map();
 
-    // New method to handle spacebar input more intelligently
-    handleSpaceBar(line, cursorPosition) {
-        const currentTime = Date.now();
-        const context = this.detectContext(line);
-
-        // Reset space count if too much time has passed
-        if (currentTime - this._spacebarState.lastSpaceTimestamp > this._spacebarState.spaceThreshold) {
-            this._spacebarState.spaceCount = 0;
-        }
-
-        this._spacebarState.spaceCount++;
-        this._spacebarState.lastSpacePosition = cursorPosition;
-        this._spacebarState.lastSpaceTimestamp = currentTime;
-        this._spacebarState.lineContext = context;
-
-        // Special handling for different contexts
-        switch(context) {
-            case 'SCENE_HEADING':
-                // Suggest time of day after two spaces
-                if (this._spacebarState.spaceCount === 2 && !line.includes('-')) {
-                    const timeOfDay = this.TIME_OF_DAY_OPTIONS[
-                        Math.floor(Math.random() * this.TIME_OF_DAY_OPTIONS.length)
-                    ];
-                    return {
-                        shouldModifyLine: true,
-                        modifiedLine: `${line} - ${timeOfDay}`,
-                        cursorPosition: line.length + 3
-                    };
-                }
-                break;
-
-            case 'CHARACTER_NAME':
-                // Center character name more precisely
-                if (this._spacebarState.spaceCount === 2) {
-                    const centeredName = line.trim().padStart(40, ' ').padEnd(80, ' ');
-                    return {
-                        shouldModifyLine: true,
-                        modifiedLine: centeredName,
-                        cursorPosition: 40
-                    };
-                }
-                break;
-        }
-
-        // Default behavior
-        return {
-            shouldModifyLine: false,
-            modifiedLine: line,
-            cursorPosition: cursorPosition
+        this.CONTEXT_REGEX = {
+            SCENE_HEADING: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)[\s\w-]+/i,
+            CHARACTER_NAME: /^[A-Z][A-Z\s]+$/,
+            TRANSITION: /^(FADE IN:|FADE OUT:|CUT TO:)/i,
+            PARENTHETICAL: /^\s*\([^)]+\)$/,
+            DIALOGUE: /^\s{4}[A-Za-z]/
         };
+
+        this.SCENE_HEADING_PREFIXES = Object.freeze([
+            'INT.', 'EXT.', 'EST.', 'INT/EXT.', 'I/E.',
+            'int.', 'ext.', 'est.', 'int/ext.', 'i/e.'
+        ]);
+
+        this.TIME_OF_DAY_OPTIONS = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING'];
+
+        this.state = {
+            currentSection: 'SCENE_HEADING',
+            currentCharacter: null,
+            transitionRules: {
+                'SCENE_HEADING': ['ACTION'],
+                'ACTION': ['CHARACTER_NAME', 'SCENE_HEADING'],
+                'CHARACTER_NAME': ['PARENTHETICAL', 'SCENE_HEADING'],
+                'PARENTHETICAL': ['DIALOGUE'],
+                'DIALOGUE': ['SCENE_HEADING', 'CHARACTER_NAME']
+            },
+            validTransitions: {
+                'SCENE_HEADING': {
+                    allowedContexts: ['SCENE_HEADING', 'ACTION'],
+                    nextSection: 'ACTION'
+                },
+                'ACTION': {
+                    allowedContexts: ['CHARACTER_NAME', 'SCENE_HEADING'],
+                    nextSection: 'CHARACTER_NAME'
+                },
+                'CHARACTER_NAME': {
+                    allowedContexts: ['PARENTHETICAL', 'SCENE_HEADING'],
+                    nextSection: 'PARENTHETICAL'
+                },
+                'PARENTHETICAL': {
+                    allowedContexts: ['DIALOGUE'],
+                    nextSection: 'DIALOGUE'
+                },
+                'DIALOGUE': {
+                    allowedContexts: ['SCENE_HEADING', 'CHARACTER_NAME'],
+                    nextSection: 'SCENE_HEADING'
+                }
+            }
+        };
+
+        this.cursorConfig = {
+            sectionIndents: {
+                'SCENE_HEADING': 0,
+                'ACTION': 0,
+                'CHARACTER_NAME': 40,
+                'PARENTHETICAL': 4,
+                'DIALOGUE': 4,
+                'TRANSITION': 70
+            },
+            recommendedLineLength: {
+                'SCENE_HEADING': 60,
+                'ACTION': 60,
+                'CHARACTER_NAME': 80,
+                'PARENTHETICAL': 40,
+                'DIALOGUE': 50,
+                'TRANSITION': 20
+            }
+        };
+
+        // Ensure all methods are bound to the instance
+        this.get = this.get.bind(this);
     }
 
-    // Enhanced context detection to support more nuanced space handling
-    detectContext(line) {
-        const trimmedLine = line.trim();
-        const cachedContext = this.cache.get(trimmedLine);
-        if (cachedContext) {
-            return cachedContext;
-        }
-
-        let context = 'ACTION';
-        if (this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine)) {
-            context = 'SCENE_HEADING';
-        } else if (this.CONTEXT_REGEX.CHARACTER_NAME.test(trimmedLine)) {
-            context = 'CHARACTER_NAME';
-        } else if (this.CONTEXT_REGEX.TRANSITION.test(trimmedLine)) {
-            context = 'TRANSITION';
-        } else if (this.CONTEXT_REGEX.PARENTHETICAL.test(trimmedLine)) {
-            context = 'PARENTHETICAL';
-        } else if (this.CONTEXT_REGEX.DIALOGUE.test(trimmedLine)) {
-            context = 'DIALOGUE';
-        }
-
-        this.cache.set(trimmedLine, context);
-        return context;
+    // Utility method to safely retrieve cached values
+    get(key) {
+        return this.cache.get(key);
     }
 
-    // Existing methods remain the same...
     formatLine(line) {
-        // Existing formatLine implementation
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
 
@@ -178,7 +176,6 @@ export default class ScreenplayStateMachine {
         return false;
     }
 
-    // Existing methods remain the same...
     handleEnter(line) {
         const trimmedLine = line.trim();
         const context = this.detectContext(trimmedLine);
@@ -292,13 +289,17 @@ export default class ScreenplayStateMachine {
     }
 
     reset() {
-        super.reset(); // Call existing reset method
-        this._spacebarState = {
-            lastSpacePosition: 0,
-            spaceCount: 0,
-            lastSpaceTimestamp: 0,
-            spaceThreshold: 300,
-            lineContext: null
+        this.cache.clear();
+        this.characters.clear();
+        this.scenes.clear();
+        this.characterVariations.clear();
+        this.sceneHeadings.clear();
+        
+        this.state = {
+            currentSection: 'SCENE_HEADING',
+            currentCharacter: null,
+            transitionRules: this.state.transitionRules,
+            validTransitions: this.state.validTransitions
         };
     }
 }
