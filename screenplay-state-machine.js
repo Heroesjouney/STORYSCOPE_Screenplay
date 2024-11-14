@@ -53,6 +53,14 @@ export default class ScreenplayStateMachine {
                 'TRANSITION': 20
             }
         };
+
+        // Cursor tracking properties
+        this._cursorTracking = {
+            lastContext: null,
+            lastLineLength: 0,
+            spacebarPositions: [],
+            contextStability: new Map()
+        };
     }
 
     formatLine(line) {
@@ -126,7 +134,6 @@ export default class ScreenplayStateMachine {
         return context;
     }
 
-    // Existing methods remain the same...
     updateCharacterAndSceneTracking(lines) {
         lines.forEach(line => {
             const context = this.detectContext(line.trim());
@@ -277,15 +284,69 @@ export default class ScreenplayStateMachine {
         };
     }
 
-    reset() {
-        this.cache.clear();
-        this.characters.clear();
-        this.scenes.clear();
-        this.characterVariations.clear();
-        this.sceneHeadings.clear();
-        this.state = {
-            currentSection: 'SCENE_HEADING',
-            currentCharacter: null
+    _analyzeCursorStability(line, cursorPosition) {
+        const context = this.detectContext(line);
+        
+        // Track context stability
+        const contextStabilityCount = (this._cursorTracking.contextStability.get(context) || 0) + 1;
+        this._cursorTracking.contextStability.set(context, contextStabilityCount);
+
+        // Store spacebar positions
+        this._cursorTracking.spacebarPositions.push({
+            position: cursorPosition,
+            context: context,
+            timestamp: Date.now()
+        });
+
+        // Limit buffer size
+        if (this._cursorTracking.spacebarPositions.length > 10) {
+            this._cursorTracking.spacebarPositions.shift();
+        }
+
+        return {
+            context: context,
+            stabilityScore: contextStabilityCount,
+            recommendedPosition: this.calculateIdealCursorPosition(line, context)
+        };
+    }
+
+    calculateIdealCursorPosition(line, context) {
+        const indent = this.cursorConfig.sectionIndents[context] || 0;
+        const recommendedLength = this.cursorConfig.recommendedLineLength[context] || line.length;
+
+        switch(context) {
+            case 'SCENE_HEADING':
+                return Math.min(line.length, recommendedLength);
+            
+            case 'CHARACTER_NAME':
+                return Math.max(indent, Math.min(line.length, recommendedLength));
+            
+            case 'PARENTHETICAL':
+            case 'DIALOGUE':
+                return indent + Math.min(line.length - indent, recommendedLength - indent);
+            
+            case 'TRANSITION':
+                return line.length;
+            
+            default:
+                return line.length;
+        }
+    }
+
+    _suggestCursorPosition(line, currentPosition) {
+        const stabilityAnalysis = this._analyzeCursorStability(line, currentPosition);
+        
+        // If context is stable, try to maintain current position
+        if (stabilityAnalysis.stabilityScore > 3) {
+            return {
+                maintainPosition: true,
+                position: currentPosition
+            };
+        }
+
+        return {
+            maintainPosition: false,
+            position: stabilityAnalysis.recommendedPosition
         };
     }
 }
