@@ -14,7 +14,6 @@ export default class ScreenplayStateMachine {
         this.characterVariations = new Map();
         this.sceneHeadings = new Map();
 
-        // Enhanced Time of Day Options with Location Hints
         this.TIME_OF_DAY_OPTIONS = {
             standard: ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING'],
             specific: ['DAWN', 'DUSK', 'SUNSET', 'SUNRISE', 'MIDNIGHT'],
@@ -25,12 +24,6 @@ export default class ScreenplayStateMachine {
                 'CITY': ['DAY', 'NIGHT'],
                 'FOREST': ['DAWN', 'DUSK']
             }
-        };
-
-        this._cursorTracking = {
-            lastContext: null,
-            lastLineType: null,
-            movementHistory: []
         };
 
         this.cursorConfig = {
@@ -49,8 +42,7 @@ export default class ScreenplayStateMachine {
                 'DIALOGUE': 4,
                 'TRANSITION': 80,
                 'ACTION': 0
-            },
-            maxLineLength: 80
+            }
         };
 
         this.CONTEXT_REGEX = {
@@ -72,24 +64,7 @@ export default class ScreenplayStateMachine {
         };
     }
 
-    // Enhanced Time of Day Suggestion Method
-    suggestTimeOfDay(sceneHeading) {
-        const uppercaseHeading = sceneHeading.toUpperCase();
-        
-        // Extract location from scene heading
-        const locationMatch = uppercaseHeading.match(/\b(BEACH|OFFICE|HOME|CITY|FOREST)\b/);
-        const location = locationMatch ? locationMatch[1] : null;
-
-        // Prioritize location-based suggestions
-        if (location && this.TIME_OF_DAY_OPTIONS.locationHints[location]) {
-            return this.TIME_OF_DAY_OPTIONS.locationHints[location];
-        }
-
-        // Fallback to standard time of day options
-        return this.TIME_OF_DAY_OPTIONS.standard;
-    }
-
-    // Comprehensive Context Detection
+    // Enhanced Context Detection
     detectContext(line) {
         const trimmedLine = line.trim();
         
@@ -105,8 +80,9 @@ export default class ScreenplayStateMachine {
         let context = 'ACTION';
         
         if (hasSceneHeadingPrefix) {
+            // More aggressive scene heading detection
             if (this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine) || 
-                trimmedLine.split(/\s+/).length > 1) {
+                trimmedLine.split(/\s+/).length >= 2) {
                 context = 'SCENE_HEADING';
             }
         } else if (this.CONTEXT_REGEX.CHARACTER_NAME.test(trimmedLine)) {
@@ -123,52 +99,7 @@ export default class ScreenplayStateMachine {
         return context;
     }
 
-    // Advanced Spacebar Handling with Predictive Formatting
-    handleSpacebar(line, cursorPosition) {
-        const context = this.detectContext(line);
-        const indent = this.cursorConfig.sectionIndents[context] || 0;
-
-        let newPosition = cursorPosition;
-
-        switch(context) {
-            case 'SCENE_HEADING':
-                const hasPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
-                    line.toUpperCase().trim().startsWith(prefix.toUpperCase())
-                );
-                
-                if (hasPrefix) {
-                    // Intelligent scene heading space insertion
-                    newPosition = Math.min(cursorPosition + 1, line.length);
-                    
-                    // Predictive Time of Day dropdown trigger
-                    if (line.includes('-') === false) {
-                        const timeOfDaySuggestions = this.suggestTimeOfDay(line);
-                        console.log('Time of Day Suggestions:', timeOfDaySuggestions);
-                    }
-                } else {
-                    newPosition = Math.max(cursorPosition, indent);
-                }
-                break;
-
-            case 'CHARACTER_NAME':
-            case 'PARENTHETICAL':
-            case 'DIALOGUE':
-            case 'TRANSITION':
-                newPosition = Math.max(cursorPosition, indent);
-                break;
-
-            default:
-                newPosition = Math.min(cursorPosition + 1, line.length);
-                break;
-        }
-
-        return {
-            content: line,
-            newCursorPosition: newPosition
-        };
-    }
-
-    // Rest of the methods remain the same...
+    // Comprehensive Formatting Method
     formatLine(line) {
         try {
             const trimmedLine = line.trim();
@@ -185,19 +116,19 @@ export default class ScreenplayStateMachine {
                         const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
                         const uppercaseLocation = locationPart.toUpperCase();
                         
-                        const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.standard.find(time => 
-                            uppercaseLocation.includes(time)
-                        );
+                        // Ensure uppercase conversion for scene headings
+                        if (locationPart) {
+                            // Handle Time of Day detection
+                            const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.standard.find(time => 
+                                uppercaseLocation.includes(time)
+                            );
 
-                        if (!timeOfDayMatch && locationPart.includes('-')) {
+                            // Always uppercase the entire scene heading
                             return `${uppercasePrefix} ${uppercaseLocation}`;
                         }
-
-                        return `${uppercasePrefix} ${uppercaseLocation}`;
                     }
                     return trimmedLine.toUpperCase();
 
-                // Other formatting cases remain the same
                 case 'CHARACTER_NAME':
                     return trimmedLine.toUpperCase().padStart(40, ' ').padEnd(80, ' ');
 
@@ -222,7 +153,52 @@ export default class ScreenplayStateMachine {
         }
     }
 
-    // Existing methods for tab, enter, and reset remain the same
+    // Spacebar Handling with Formatting Trigger
+    handleSpacebar(line, cursorPosition) {
+        const context = this.detectContext(line);
+        const indent = this.cursorConfig.sectionIndents[context] || 0;
+
+        let newPosition = cursorPosition;
+
+        switch(context) {
+            case 'SCENE_HEADING':
+                const hasPrefix = this.SCENE_HEADING_PREFIXES.some(prefix => 
+                    line.toUpperCase().trim().startsWith(prefix.toUpperCase())
+                );
+                
+                if (hasPrefix) {
+                    // Trigger formatting and intelligent positioning
+                    newPosition = Math.min(cursorPosition + 1, line.length);
+                    
+                    // Immediate formatting for scene headings
+                    const formattedLine = this.formatLine(line);
+                    return {
+                        content: formattedLine,
+                        newCursorPosition: newPosition
+                    };
+                }
+                break;
+
+            // Other context handling remains the same
+            case 'CHARACTER_NAME':
+            case 'PARENTHETICAL':
+            case 'DIALOGUE':
+            case 'TRANSITION':
+                newPosition = Math.max(cursorPosition, indent);
+                break;
+
+            default:
+                newPosition = Math.min(cursorPosition + 1, line.length);
+                break;
+        }
+
+        return {
+            content: line,
+            newCursorPosition: newPosition
+        };
+    }
+
+    // Existing methods for tab, enter, and reset
     handleTab(reverse = false) {
         const currentSection = this.state.currentSection;
         const sectionOrder = [
