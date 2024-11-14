@@ -18,7 +18,11 @@ export default class ScreenplayFormatter {
                     lines[currentLineIndex] = formattedLine;
                     
                     const previousContent = lines.slice(0, currentLineIndex).join('\n');
-                    const newCursorPosition = previousContent.length + formattedLine.length + 1;
+                    const newCursorPosition = this.calculateNewCursorPosition(
+                        previousContent, 
+                        formattedLine, 
+                        cursorPosition
+                    );
                     
                     return {
                         formattedContent: lines.join('\n'),
@@ -38,6 +42,38 @@ export default class ScreenplayFormatter {
                 newCursorPosition: cursorPosition
             };
         }
+    }
+
+    calculateNewCursorPosition(previousContent, formattedLine, originalCursorPosition) {
+        const context = this.stateMachine.detectContext(formattedLine);
+        const indent = this.stateMachine.cursorConfig.sectionIndents[context] || 0;
+
+        // Adjust cursor position based on context and formatting
+        if (originalCursorPosition < indent) {
+            return previousContent.length + indent + 1;
+        }
+
+        return previousContent.length + Math.min(originalCursorPosition, formattedLine.length);
+    }
+
+    handleSpacebar(content, cursorPosition) {
+        const lines = content.split('\n');
+        const currentLineIndex = this.findCurrentLineIndex(lines, cursorPosition);
+        
+        if (currentLineIndex !== -1) {
+            const currentLine = lines[currentLineIndex];
+            const newCursorPosition = this.stateMachine.handleSpacebar(currentLine, cursorPosition);
+            
+            return {
+                content: content,
+                newCursorPosition: newCursorPosition
+            };
+        }
+
+        return {
+            content: content,
+            newCursorPosition: cursorPosition
+        };
     }
 
     handleTabKey(isShiftPressed) {
