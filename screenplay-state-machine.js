@@ -1,151 +1,43 @@
-export default class ScreenplayStateMachine {
-    constructor(options = {}) {
-        this.config = {
-            maxCacheSize: options.maxCacheSize || 1000,
-            maxFrequentHeadings: options.maxFrequentHeadings || 10,
-            maxCharacterNames: options.maxCharacterNames || 50,
-            maxSceneLocations: options.maxSceneLocations || 50,
-            cacheEvictionStrategy: options.cacheEvictionStrategy || 'lru'
-        };
+import { ScreenplayTracker } from './screenplay-tracker.js';
+import { ScreenplayContextDetector } from './screenplay-context-detector.js';
 
+export class ScreenplayStateMachine {
+    constructor(options = {}) {
+        this.tracker = new ScreenplayTracker(options);
+        this.contextDetector = new ScreenplayContextDetector();
+        
         this.state = {
             currentSection: 'SCENE_HEADING',
             currentCharacter: null
         };
-
-        // Expanded to match exact guidelines
-        this.CONTEXT_REGEX = {
-            SCENE_HEADING: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)[\s\w-]+/i,
-            CHARACTER_NAME: /^[A-Z][A-Z\s]+$/,
-            TRANSITION: /^(FADE IN:|FADE OUT:|CUT TO:|DISSOLVE TO:|SMASH CUT TO:)/i
-        };
-
-        this.SCENE_HEADING_PREFIXES = [
-            'INT.', 'EXT.', 'EST.', 'INT/EXT.', 'I/E.',
-            'int.', 'ext.', 'est.', 'int/ext.', 'i/e.'
-        ];
-
-        // Updated formatting rules to match exact screenplay guidelines
-        this.FORMATTING_RULES = {
-            SCENE_HEADING: {
-                pattern: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)\s*[A-Z0-9\s]+(-\s*(?:DAY|NIGHT|MORNING|AFTERNOON|EVENING))?$/i,
-                margins: { 
-                    top: 1, 
-                    bottom: 1, 
-                    left: 1.5,  // 1.5 inches left margin
-                    right: 1    // 1 inch right margin
-                }
-            },
-            ACTION: {
-                pattern: /^[A-Za-z0-9\s]+$/,
-                margins: { 
-                    top: 0, 
-                    bottom: 1, 
-                    left: 1.5,  // 1.5 inches left margin
-                    right: 1    // 1 inch right margin
-                }
-            },
-            CHARACTER_NAME: {
-                pattern: /^[A-Z\s]+$/,
-                margins: { 
-                    top: 1.5,   // 1.5 inches from top
-                    bottom: 0, 
-                    left: 'center', 
-                    right: 'center' 
-                }
-            },
-            DIALOGUE: {
-                pattern: /^(\s{4})[A-Za-z]/,
-                margins: { 
-                    top: 0, 
-                    bottom: 1, 
-                    left: 2.5,  // 2.5 inches from left
-                    right: 2.5  // 2.5 inches from right
-                }
-            },
-            PARENTHETICAL: {
-                pattern: /^\s*\([^)]+\)$/,
-                margins: { 
-                    top: 0, 
-                    bottom: 0, 
-                    left: 2.5,  // 2.5 inches from left
-                    right: 2.5  // 2.5 inches from right
-                }
-            },
-            TRANSITION: {
-                pattern: /^(FADE IN:|FADE OUT:|CUT TO:|DISSOLVE TO:|SMASH CUT TO:)$/i,
-                margins: { 
-                    top: 1, 
-                    bottom: 1, 
-                    left: 'right', 
-                    right: 1 
-                }
-            }
-        };
     }
 
-    // Existing methods remain the same...
-
     formatLine(line) {
-        const trimmedLine = line.trim();
-        const context = this.detectContext(trimmedLine);
-
-        switch(context) {
-            case 'SCENE_HEADING':
-                // Ensure all scene heading prefixes are uppercase
-                const matchingPrefix = this.SCENE_HEADING_PREFIXES.find(prefix => 
-                    trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
-                );
-                
-                if (matchingPrefix) {
-                    const uppercasePrefix = matchingPrefix.toUpperCase();
-                    const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
-                    const uppercaseLocation = locationPart.toUpperCase();
-                    return `${uppercasePrefix} ${uppercaseLocation}`;
-                }
-                return trimmedLine.toUpperCase();
-
-            case 'CHARACTER_NAME':
-                return trimmedLine.toUpperCase();
-
-            case 'DIALOGUE':
-                return trimmedLine;
-
-            case 'PARENTHETICAL':
-                return trimmedLine;
-
-            case 'TRANSITION':
-                return trimmedLine.toUpperCase();
-
-            case 'ACTION':
-                return trimmedLine.charAt(0).toUpperCase() + trimmedLine.slice(1);
-
-            default:
-                return trimmedLine;
-        }
+        return this.contextDetector.formatLine(line);
     }
 
     detectContext(line) {
-        const trimmedLine = line.trim().toUpperCase();
-        
-        // Scene Heading Detection with multiple prefix variations
-        if (this.SCENE_HEADING_PREFIXES.some(prefix => 
-            trimmedLine.startsWith(prefix.toUpperCase())
-        )) {
-            return 'SCENE_HEADING';
-        }
-        
-        // Character Detection
-        if (/^[A-Z][A-Z\s]+$/.test(trimmedLine) && !trimmedLine.includes('(')) {
-            return 'CHARACTER_NAME';
-        }
-        
-        // Transition Detection
-        if (/^(FADE IN:|FADE OUT:|CUT TO:)/.test(trimmedLine)) {
-            return 'TRANSITION';
-        }
-        
-        return 'ACTION';
+        return this.contextDetector.detectContext(line);
+    }
+
+    updateTracking(lines) {
+        lines.forEach(line => {
+            const context = this.detectContext(line.trim());
+            if (context === 'CHARACTER_NAME') {
+                this.tracker.trackCharacter(line.trim());
+            }
+            if (context === 'SCENE_HEADING') {
+                this.tracker.trackScene(line.trim());
+            }
+        });
+    }
+
+    getCharacterSuggestions(partialName) {
+        return this.tracker.getCharacterSuggestions(partialName);
+    }
+
+    getSceneSuggestions(partialHeading) {
+        return this.tracker.getSceneSuggestions(partialHeading);
     }
 
     handleEnter(line) {
@@ -154,16 +46,28 @@ export default class ScreenplayStateMachine {
 
         switch (this.state.currentSection) {
             case 'SCENE_HEADING':
-                this.state.currentSection = context === 'SCENE_HEADING' ? 'ACTION' : 'SCENE_HEADING';
+                if (context === 'SCENE_HEADING') {
+                    this.state.currentSection = 'ACTION';
+                } else {
+                    this.state.currentSection = 'SCENE_HEADING';
+                }
                 break;
 
             case 'ACTION':
-                this.state.currentSection = context === 'CHARACTER_NAME' ? 'CHARACTER_NAME' : 'SCENE_HEADING';
-                this.state.currentCharacter = context === 'CHARACTER_NAME' ? trimmedLine : null;
+                if (context === 'CHARACTER_NAME') {
+                    this.state.currentSection = 'CHARACTER_NAME';
+                    this.state.currentCharacter = trimmedLine;
+                } else {
+                    this.state.currentSection = 'SCENE_HEADING';
+                }
                 break;
 
             case 'CHARACTER_NAME':
-                this.state.currentSection = trimmedLine ? 'PARENTHETICAL' : 'SCENE_HEADING';
+                if (trimmedLine) {
+                    this.state.currentSection = 'PARENTHETICAL';
+                } else {
+                    this.state.currentSection = 'SCENE_HEADING';
+                }
                 break;
 
             case 'PARENTHETICAL':
@@ -171,7 +75,11 @@ export default class ScreenplayStateMachine {
                 break;
 
             case 'DIALOGUE':
-                this.state.currentSection = trimmedLine ? 'DIALOGUE' : 'SCENE_HEADING';
+                if (trimmedLine) {
+                    this.state.currentSection = 'DIALOGUE';
+                } else {
+                    this.state.currentSection = 'SCENE_HEADING';
+                }
                 break;
 
             default:
@@ -181,38 +89,38 @@ export default class ScreenplayStateMachine {
     }
 
     handleTab(reverse = false) {
-        const sections = ['SCENE_HEADING', 'ACTION', 'CHARACTER_NAME', 'PARENTHETICAL', 'DIALOGUE'];
-        const currentIndex = sections.indexOf(this.state.currentSection);
-        
-        if (reverse) {
-            this.state.currentSection = sections[currentIndex > 0 ? currentIndex - 1 : sections.length - 1];
-        } else {
-            this.state.currentSection = sections[(currentIndex + 1) % sections.length];
+        switch (this.state.currentSection) {
+            case 'SCENE_HEADING':
+                this.state.currentSection = 'ACTION';
+                break;
+
+            case 'ACTION':
+                this.state.currentSection = 'CHARACTER_NAME';
+                break;
+
+            case 'CHARACTER_NAME':
+                this.state.currentSection = 'PARENTHETICAL';
+                break;
+
+            case 'PARENTHETICAL':
+                this.state.currentSection = 'DIALOGUE';
+                break;
+
+            case 'DIALOGUE':
+                this.state.currentSection = 'SCENE_HEADING';
+                break;
+
+            default:
+                this.state.currentSection = 'SCENE_HEADING';
+                break;
         }
-    }
-
-    getCurrentMarginSection() {
-        return this.state.currentSection;
-    }
-
-    applyMarginFormatting(line) {
-        const rules = this.FORMATTING_RULES[this.state.currentSection];
-        if (!rules) return line;
-
-        let formattedLine = line;
-        if (rules.margins.left === 'center') {
-            formattedLine = formattedLine.padStart(40, ' ').padEnd(80, ' ');
-        } else if (rules.margins.left === 'right') {
-            formattedLine = formattedLine.padStart(80);
-        } else if (rules.margins.left > 0) {
-            formattedLine = ' '.repeat(rules.margins.left) + formattedLine;
-        }
-
-        return formattedLine;
     }
 
     reset() {
-        this.state.currentSection = 'SCENE_HEADING';
-        this.state.currentCharacter = null;
+        this.tracker.reset();
+        this.state = {
+            currentSection: 'SCENE_HEADING',
+            currentCharacter: null
+        };
     }
 }
