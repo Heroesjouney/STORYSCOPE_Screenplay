@@ -5,43 +5,51 @@ export default class ScreenplayFormatter {
     constructor(stateMachine) {
         this.stateMachine = stateMachine;
         this.cursorManager = new CursorManager(stateMachine);
+        this.autoFormatEnabled = true;
+    }
+
+    // Enhanced auto-formatting method
+    autoFormat(content, cursorPosition) {
+        if (!this.autoFormatEnabled) return { content, cursorPosition };
+
+        const lines = content.split('\n');
+        const currentLineIndex = this.findCurrentLineIndex(lines, cursorPosition);
+
+        if (currentLineIndex !== -1) {
+            const currentLine = lines[currentLineIndex];
+            const formattedLine = this.stateMachine.formatLine(currentLine);
+
+            if (formattedLine !== currentLine) {
+                lines[currentLineIndex] = formattedLine;
+
+                const cursorResult = this.cursorManager.calculateCursorPosition(
+                    formattedLine, 
+                    cursorPosition, 
+                    'input'
+                );
+
+                return {
+                    content: lines.join('\n'),
+                    cursorPosition: cursorResult.position
+                };
+            }
+        }
+
+        return { content, cursorPosition };
     }
 
     handleInput(content, cursorPosition) {
         try {
-            const lines = content.split('\n');
-            const currentLineIndex = this.findCurrentLineIndex(lines, cursorPosition);
+            const { content: formattedContent, cursorPosition: newCursorPosition } = 
+                this.autoFormat(content, cursorPosition);
             
-            if (currentLineIndex !== -1) {
-                const currentLine = lines[currentLineIndex];
-                const formattedLine = this.stateMachine.formatLine(currentLine);
-                
-                if (formattedLine !== currentLine) {
-                    lines[currentLineIndex] = formattedLine;
-                    
-                    const cursorResult = this.cursorManager.calculateCursorPosition(
-                        formattedLine, 
-                        cursorPosition, 
-                        'input'
-                    );
-                    
-                    return {
-                        formattedContent: lines.join('\n'),
-                        newCursorPosition: cursorResult.position
-                    };
-                }
-            }
-
             return {
-                formattedContent: content,
-                newCursorPosition: cursorPosition
+                formattedContent,
+                newCursorPosition
             };
         } catch (error) {
-            console.error(`Input handling error: ${error.message}`);
-            return {
-                formattedContent: content,
-                newCursorPosition: cursorPosition
-            };
+            console.error(`Input auto-formatting error: ${error.message}`);
+            return { formattedContent: content, newCursorPosition: cursorPosition };
         }
     }
 
@@ -68,9 +76,13 @@ export default class ScreenplayFormatter {
             const updatedLine = this.stateMachine.formatLine(updatedLines[currentLineIndex]);
             updatedLines[currentLineIndex] = updatedLine;
             
+            // Auto-format the entire content
+            const { content: finalContent, cursorPosition: finalCursorPosition } = 
+                this.autoFormat(updatedLines.join('\n'), cursorResult.position + 1);
+            
             return {
-                content: updatedLines.join('\n'),
-                newCursorPosition: cursorResult.position + 1
+                content: finalContent,
+                newCursorPosition: finalCursorPosition
             };
         }
 
@@ -101,6 +113,7 @@ export default class ScreenplayFormatter {
         return enterResult;
     }
 
+    // Comprehensive line formatting method
     formatLine(line) {
         return this.stateMachine.formatLine(line);
     }
@@ -114,6 +127,11 @@ export default class ScreenplayFormatter {
             }
         }
         return lines.length - 1;
+    }
+
+    // Toggle auto-formatting
+    setAutoFormatting(enabled) {
+        this.autoFormatEnabled = enabled;
     }
 
     // Debugging method to get cursor interaction history
