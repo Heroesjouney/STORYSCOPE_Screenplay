@@ -17,13 +17,17 @@ export default class ScreenplayStateMachine {
         this.CONTEXT_REGEX = {
             SCENE_HEADING: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)[\s\w-]+/i,
             CHARACTER_NAME: /^[A-Z][A-Z\s]+$/,
-            TRANSITION: /^(FADE IN:|FADE OUT:|CUT TO:)/i
+            TRANSITION: /^(FADE IN:|FADE OUT:|CUT TO:)/i,
+            PARENTHETICAL: /^\s*\([^)]+\)$/,
+            DIALOGUE: /^\s{4}[A-Za-z]/
         };
 
         this.SCENE_HEADING_PREFIXES = Object.freeze([
             'INT.', 'EXT.', 'EST.', 'INT/EXT.', 'I/E.',
             'int.', 'ext.', 'est.', 'int/ext.', 'i/e.'
         ]);
+
+        this.TIME_OF_DAY_OPTIONS = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING'];
 
         this.state = {
             currentSection: 'SCENE_HEADING',
@@ -45,6 +49,16 @@ export default class ScreenplayStateMachine {
                     const uppercasePrefix = matchingPrefix.toUpperCase();
                     const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
                     const uppercaseLocation = locationPart.toUpperCase();
+                    
+                    // Intelligent time of day suggestion
+                    const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.find(time => 
+                        uppercaseLocation.includes(time)
+                    );
+
+                    if (!timeOfDayMatch && locationPart.includes('-')) {
+                        return `${uppercasePrefix} ${uppercaseLocation}`;
+                    }
+
                     return `${uppercasePrefix} ${uppercaseLocation}`;
                 }
                 return trimmedLine.toUpperCase();
@@ -57,6 +71,12 @@ export default class ScreenplayStateMachine {
 
             case 'ACTION':
                 return trimmedLine.charAt(0).toUpperCase() + trimmedLine.slice(1);
+
+            case 'PARENTHETICAL':
+                return trimmedLine.padStart(4);
+
+            case 'DIALOGUE':
+                return trimmedLine.padStart(4);
 
             default:
                 return trimmedLine;
@@ -77,6 +97,10 @@ export default class ScreenplayStateMachine {
             context = 'CHARACTER_NAME';
         } else if (this.CONTEXT_REGEX.TRANSITION.test(trimmedLine)) {
             context = 'TRANSITION';
+        } else if (this.CONTEXT_REGEX.PARENTHETICAL.test(trimmedLine)) {
+            context = 'PARENTHETICAL';
+        } else if (this.CONTEXT_REGEX.DIALOGUE.test(trimmedLine)) {
+            context = 'DIALOGUE';
         }
 
         this.cache.set(trimmedLine, context);
