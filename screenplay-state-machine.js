@@ -14,12 +14,18 @@ export default class ScreenplayStateMachine {
         this.characterVariations = new Map();
         this.sceneHeadings = new Map();
 
-        this.TIME_OF_DAY_OPTIONS = [
-            'DAY', 'NIGHT', 'MORNING', 
-            'AFTERNOON', 'EVENING', 
-            'DAWN', 'DUSK', 'SUNSET', 
-            'SUNRISE', 'MIDNIGHT'
-        ];
+        // Enhanced Time of Day Options with Location Hints
+        this.TIME_OF_DAY_OPTIONS = {
+            standard: ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING'],
+            specific: ['DAWN', 'DUSK', 'SUNSET', 'SUNRISE', 'MIDNIGHT'],
+            locationHints: {
+                'BEACH': ['DAY', 'SUNSET', 'SUNRISE'],
+                'OFFICE': ['MORNING', 'AFTERNOON'],
+                'HOME': ['EVENING', 'NIGHT'],
+                'CITY': ['DAY', 'NIGHT'],
+                'FOREST': ['DAWN', 'DUSK']
+            }
+        };
 
         this._cursorTracking = {
             lastContext: null,
@@ -66,25 +72,21 @@ export default class ScreenplayStateMachine {
         };
     }
 
-    // Enhanced Cursor Tracking Method
-    _trackCursorMovement(context, action, oldPosition, newPosition) {
-        const movement = {
-            timestamp: new Date(),
-            context,
-            action,
-            oldPosition,
-            newPosition,
-            delta: newPosition - oldPosition
-        };
-
-        this._cursorTracking.movementHistory.push(movement);
+    // Enhanced Time of Day Suggestion Method
+    suggestTimeOfDay(sceneHeading) {
+        const uppercaseHeading = sceneHeading.toUpperCase();
         
-        // Limit history to last 50 movements
-        if (this._cursorTracking.movementHistory.length > 50) {
-            this._cursorTracking.movementHistory.shift();
+        // Extract location from scene heading
+        const locationMatch = uppercaseHeading.match(/\b(BEACH|OFFICE|HOME|CITY|FOREST)\b/);
+        const location = locationMatch ? locationMatch[1] : null;
+
+        // Prioritize location-based suggestions
+        if (location && this.TIME_OF_DAY_OPTIONS.locationHints[location]) {
+            return this.TIME_OF_DAY_OPTIONS.locationHints[location];
         }
 
-        console.log('Cursor Movement Tracking:', movement);
+        // Fallback to standard time of day options
+        return this.TIME_OF_DAY_OPTIONS.standard;
     }
 
     // Comprehensive Context Detection
@@ -121,17 +123,10 @@ export default class ScreenplayStateMachine {
         return context;
     }
 
-    // Advanced Spacebar Handling
+    // Advanced Spacebar Handling with Predictive Formatting
     handleSpacebar(line, cursorPosition) {
         const context = this.detectContext(line);
         const indent = this.cursorConfig.sectionIndents[context] || 0;
-
-        console.log('Spacebar Debug:', {
-            line,
-            cursorPosition,
-            context,
-            indent
-        });
 
         let newPosition = cursorPosition;
 
@@ -142,48 +137,35 @@ export default class ScreenplayStateMachine {
                 );
                 
                 if (hasPrefix) {
-                    // More intelligent scene heading space insertion
+                    // Intelligent scene heading space insertion
                     newPosition = Math.min(cursorPosition + 1, line.length);
+                    
+                    // Predictive Time of Day dropdown trigger
+                    if (line.includes('-') === false) {
+                        const timeOfDaySuggestions = this.suggestTimeOfDay(line);
+                        console.log('Time of Day Suggestions:', timeOfDaySuggestions);
+                    }
                 } else {
-                    // Prevent excessive spaces in scene headings
                     newPosition = Math.max(cursorPosition, indent);
                 }
                 break;
 
             case 'CHARACTER_NAME':
-                // Enforce centered positioning
-                newPosition = Math.max(cursorPosition, indent);
-                break;
-
             case 'PARENTHETICAL':
             case 'DIALOGUE':
-                // Respect dialogue indentation
-                newPosition = Math.max(cursorPosition, indent);
-                break;
-
             case 'TRANSITION':
-                // Maintain right-aligned positioning
                 newPosition = Math.max(cursorPosition, indent);
                 break;
 
             default:
-                // Standard cursor movement with length check
                 newPosition = Math.min(cursorPosition + 1, line.length);
                 break;
         }
-
-        // Track cursor movement
-        this._trackCursorMovement(context, 'spacebar', cursorPosition, newPosition);
 
         return {
             content: line,
             newCursorPosition: newPosition
         };
-    }
-
-    // Diagnostic Cursor Movement History
-    getCursorMovementHistory() {
-        return this._cursorTracking.movementHistory;
     }
 
     // Rest of the methods remain the same...
@@ -203,7 +185,7 @@ export default class ScreenplayStateMachine {
                         const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
                         const uppercaseLocation = locationPart.toUpperCase();
                         
-                        const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.find(time => 
+                        const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.standard.find(time => 
                             uppercaseLocation.includes(time)
                         );
 
@@ -215,6 +197,7 @@ export default class ScreenplayStateMachine {
                     }
                     return trimmedLine.toUpperCase();
 
+                // Other formatting cases remain the same
                 case 'CHARACTER_NAME':
                     return trimmedLine.toUpperCase().padStart(40, ' ').padEnd(80, ' ');
 
@@ -315,6 +298,5 @@ export default class ScreenplayStateMachine {
         this.cache.clear();
         this.state.currentSection = 'SCENE_HEADING';
         this.state.currentCharacter = null;
-        this._cursorTracking.movementHistory = [];
     }
 }
