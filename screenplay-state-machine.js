@@ -14,9 +14,10 @@ export default class ScreenplayStateMachine {
         this.characterVariations = new Map();
         this.sceneHeadings = new Map();
 
+        // Enhanced Time of Day Options
         this.TIME_OF_DAY_OPTIONS = {
             standard: ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING'],
-            specific: ['DAWN', 'DUSK', 'SUNSET', 'SUNRISE', 'MIDNIGHT'],
+            specific: ['DAWN', 'DUSK', 'SUNSET', 'SUNRISE', 'MIDNIGHT', 'LATE NIGHT'],
             locationHints: {
                 'BEACH': ['DAY', 'SUNSET', 'SUNRISE'],
                 'OFFICE': ['MORNING', 'AFTERNOON'],
@@ -45,8 +46,9 @@ export default class ScreenplayStateMachine {
             }
         };
 
+        // Enhanced Context Detection Regex
         this.CONTEXT_REGEX = {
-            SCENE_HEADING: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)[\s\w-]+/i,
+            SCENE_HEADING: /^(INT\.|EXT\.|EST\.|INT\/EXT\.|I\/E\.)[\s\w-]+(?:\s*-\s*(DAY|NIGHT|MORNING|EVENING|LATE NIGHT|SUNSET|SUNRISE))?/i,
             CHARACTER_NAME: /^[A-Z][A-Z\s]+$/,
             TRANSITION: /^(FADE IN:|FADE OUT:|CUT TO:)/i,
             PARENTHETICAL: /^\s*\([^)]+\)$/,
@@ -64,7 +66,40 @@ export default class ScreenplayStateMachine {
         };
     }
 
-    // Enhanced Context Detection
+    // Enhanced Scene Heading Normalization
+    normalizeSceneHeading(line) {
+        const trimmedLine = line.trim();
+        const matchingPrefix = this.SCENE_HEADING_PREFIXES.find(prefix => 
+            trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
+        );
+
+        if (matchingPrefix) {
+            const uppercasePrefix = matchingPrefix.toUpperCase();
+            const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
+            
+            // Split location into base and time of day
+            const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.standard.find(time => 
+                locationPart.toUpperCase().includes(time)
+            );
+
+            const baseLocation = timeOfDayMatch 
+                ? locationPart.replace(new RegExp(timeOfDayMatch, 'i'), '').trim()
+                : locationPart;
+
+            const normalizedLocation = baseLocation
+                .split(/\s+/)
+                .map(word => word.toUpperCase())
+                .join(' ');
+
+            return timeOfDayMatch 
+                ? `${uppercasePrefix} ${normalizedLocation} - ${timeOfDayMatch}`
+                : `${uppercasePrefix} ${normalizedLocation}`;
+        }
+
+        return trimmedLine.toUpperCase();
+    }
+
+    // Comprehensive Context Detection
     detectContext(line) {
         const trimmedLine = line.trim();
         
@@ -80,9 +115,7 @@ export default class ScreenplayStateMachine {
         let context = 'ACTION';
         
         if (hasSceneHeadingPrefix) {
-            // More aggressive scene heading detection
-            if (this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine) || 
-                trimmedLine.split(/\s+/).length >= 2) {
+            if (this.CONTEXT_REGEX.SCENE_HEADING.test(trimmedLine)) {
                 context = 'SCENE_HEADING';
             }
         } else if (this.CONTEXT_REGEX.CHARACTER_NAME.test(trimmedLine)) {
@@ -99,7 +132,7 @@ export default class ScreenplayStateMachine {
         return context;
     }
 
-    // Comprehensive Formatting Method
+    // Enhanced Line Formatting
     formatLine(line) {
         try {
             const trimmedLine = line.trim();
@@ -107,27 +140,7 @@ export default class ScreenplayStateMachine {
 
             switch(context) {
                 case 'SCENE_HEADING':
-                    const matchingPrefix = this.SCENE_HEADING_PREFIXES.find(prefix => 
-                        trimmedLine.toUpperCase().startsWith(prefix.toUpperCase())
-                    );
-
-                    if (matchingPrefix) {
-                        const uppercasePrefix = matchingPrefix.toUpperCase();
-                        const locationPart = trimmedLine.slice(matchingPrefix.length).trim();
-                        const uppercaseLocation = locationPart.toUpperCase();
-                        
-                        // Ensure uppercase conversion for scene headings
-                        if (locationPart) {
-                            // Handle Time of Day detection
-                            const timeOfDayMatch = this.TIME_OF_DAY_OPTIONS.standard.find(time => 
-                                uppercaseLocation.includes(time)
-                            );
-
-                            // Always uppercase the entire scene heading
-                            return `${uppercasePrefix} ${uppercaseLocation}`;
-                        }
-                    }
-                    return trimmedLine.toUpperCase();
+                    return this.normalizeSceneHeading(trimmedLine);
 
                 case 'CHARACTER_NAME':
                     return trimmedLine.toUpperCase().padStart(40, ' ').padEnd(80, ' ');
@@ -153,7 +166,7 @@ export default class ScreenplayStateMachine {
         }
     }
 
-    // Spacebar Handling with Formatting Trigger
+    // Spacebar Handling with Advanced Formatting
     handleSpacebar(line, cursorPosition) {
         const context = this.detectContext(line);
         const indent = this.cursorConfig.sectionIndents[context] || 0;
@@ -167,10 +180,7 @@ export default class ScreenplayStateMachine {
                 );
                 
                 if (hasPrefix) {
-                    // Trigger formatting and intelligent positioning
                     newPosition = Math.min(cursorPosition + 1, line.length);
-                    
-                    // Immediate formatting for scene headings
                     const formattedLine = this.formatLine(line);
                     return {
                         content: formattedLine,
@@ -179,7 +189,6 @@ export default class ScreenplayStateMachine {
                 }
                 break;
 
-            // Other context handling remains the same
             case 'CHARACTER_NAME':
             case 'PARENTHETICAL':
             case 'DIALOGUE':
