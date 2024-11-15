@@ -12,9 +12,21 @@ export default class ScreenplayFormatter {
         this.stateMachine = stateMachine;
         this.cursorManager = new CursorManager(stateMachine);
         this.autoFormatEnabled = true;
+        
+        // Throttling configuration
+        this.throttleDelay = 200;
+        this.throttleTimer = null;
     }
 
-    // Enhanced defensive auto-formatting method
+    // Enhanced throttle method
+    throttle(func, wait) {
+        return (...args) => {
+            clearTimeout(this.throttleTimer);
+            this.throttleTimer = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    // Enhanced defensive auto-formatting method with throttling
     autoFormat(content, cursorPosition) {
         if (!this.autoFormatEnabled) return { content, cursorPosition };
 
@@ -51,10 +63,39 @@ export default class ScreenplayFormatter {
         }
     }
 
-    // Safe line formatting with fallback
+    // Advanced input handling with context detection
+    handleInput(content, cursorPosition) {
+        const throttledAutoFormat = this.throttle(this.autoFormat.bind(this), this.throttleDelay);
+        
+        try {
+            const lines = content.split('\n');
+            const lastLine = lines[lines.length - 1].trim();
+            
+            // Scene heading detection and normalization
+            if (this.stateMachine.isSceneHeading(lastLine)) {
+                const normalizedHeading = this.stateMachine.normalizeSceneHeading(lastLine);
+                lines[lines.length - 1] = normalizedHeading;
+                content = lines.join('\n');
+            }
+
+            const { formattedContent, newCursorPosition } = throttledAutoFormat(content, cursorPosition);
+            
+            return {
+                formattedContent,
+                newCursorPosition
+            };
+        } catch (error) {
+            console.error(`Input auto-formatting error: ${error.message}`);
+            return { 
+                formattedContent: content, 
+                newCursorPosition: cursorPosition 
+            };
+        }
+    }
+
+    // Existing methods remain the same...
     safeFormatLine(line) {
         try {
-            // Ensure stateMachine and formatLine method exist
             if (!this.stateMachine || typeof this.stateMachine.formatLine !== 'function') {
                 console.warn('StateMachine or formatLine method is undefined');
                 return this.defaultFormatLine(line);
@@ -67,66 +108,42 @@ export default class ScreenplayFormatter {
         }
     }
 
-    // Default formatting fallback
     defaultFormatLine(line) {
-        // Basic formatting fallback
         return line.charAt(0).toUpperCase() + line.slice(1).trim();
     }
 
-    handleInput(content, cursorPosition) {
+    handleSpacebar(content, cursorPosition) {
         try {
-            const { content: formattedContent, cursorPosition: newCursorPosition } = 
-                this.autoFormat(content, cursorPosition);
+            const lines = content.split('\n');
+            const currentLineIndex = this.findCurrentLineIndex(lines, cursorPosition);
             
+            if (currentLineIndex !== -1) {
+                const currentLine = lines[currentLineIndex];
+                const spacebarResult = this.stateMachine.handleSpacebar(currentLine, cursorPosition);
+                
+                lines[currentLineIndex] = spacebarResult.content;
+                const newContent = lines.join('\n');
+                
+                return {
+                    content: newContent,
+                    newCursorPosition: spacebarResult.newCursorPosition
+                };
+            }
+
             return {
-                formattedContent,
-                newCursorPosition
+                content: content,
+                newCursorPosition: cursorPosition
             };
         } catch (error) {
-            console.error(`Input auto-formatting error: ${error.message}`);
-            return { formattedContent: content, newCursorPosition: cursorPosition };
-        }
-    }
-
-    handleSpacebar(content, cursorPosition) {
-        const lines = content.split('\n');
-        const currentLineIndex = this.findCurrentLineIndex(lines, cursorPosition);
-        
-        if (currentLineIndex !== -1) {
-            const currentLine = lines[currentLineIndex];
-            const cursorResult = this.cursorManager.calculateCursorPosition(
-                currentLine, 
-                cursorPosition, 
-                'spacebar'
-            );
-            
-            // Insert space at the cursor position
-            const newContent = 
-                content.slice(0, cursorPosition) + 
-                ' ' + 
-                content.slice(cursorPosition);
-            
-            // Perform additional formatting on the line
-            const updatedLines = newContent.split('\n');
-            const updatedLine = this.safeFormatLine(updatedLines[currentLineIndex]);
-            updatedLines[currentLineIndex] = updatedLine;
-            
-            // Auto-format the entire content
-            const { content: finalContent, cursorPosition: finalCursorPosition } = 
-                this.autoFormat(updatedLines.join('\n'), cursorResult.position + 1);
-            
+            console.error('Spacebar handling error:', error);
             return {
-                content: finalContent,
-                newCursorPosition: finalCursorPosition
+                content: content,
+                newCursorPosition: cursorPosition
             };
         }
-
-        return {
-            content: content,
-            newCursorPosition: cursorPosition
-        };
     }
 
+    // Existing methods for tab, enter, and other handlers...
     handleTabKey(isShiftPressed) {
         try {
             const tabResult = this.stateMachine.handleTab(isShiftPressed);
@@ -146,25 +163,6 @@ export default class ScreenplayFormatter {
         }
     }
 
-    handleEnterKey(currentLine) {
-        try {
-            const enterResult = this.stateMachine.handleEnter(currentLine);
-            const cursorResult = this.cursorManager.calculateCursorPosition(
-                currentLine, 
-                0, 
-                'enter'
-            );
-            return enterResult;
-        } catch (error) {
-            console.error('Enter key handling error:', error);
-            return { currentSection: 'SCENE_HEADING' };
-        }
-    }
-
-    formatLine(line) {
-        return this.safeFormatLine(line);
-    }
-
     findCurrentLineIndex(lines, cursorPosition) {
         let currentPosition = 0;
         for (let i = 0; i < lines.length; i++) {
@@ -176,11 +174,5 @@ export default class ScreenplayFormatter {
         return lines.length - 1;
     }
 
-    setAutoFormatting(enabled) {
-        this.autoFormatEnabled = enabled;
-    }
-
-    getCursorInteractionHistory() {
-        return this.cursorManager.getCursorInteractionHistory();
-    }
+    // Additional methods for dropdown and special key handling can be added here
 }
